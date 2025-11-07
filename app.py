@@ -7,6 +7,7 @@ from datetime import datetime
 import threading
 from apscheduler.schedulers.background import BackgroundScheduler
 import requests
+from elevenlabs.client import ElevenLabs
 
 app = Flask(__name__)
 
@@ -16,10 +17,22 @@ TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '+17047418085')
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 
-# Initialize Twilio client
+# ElevenLabs Configuration
+ELEVENLABS_API_KEY = os.getenv('ELEVENLABS_API_KEY')
+if not ELEVENLABS_API_KEY:
+    raise ValueError("ELEVENLABS_API_KEY is required")
+
+AGENT_ID = os.getenv('AGENT_ID')
+if not AGENT_ID:
+    raise ValueError("AGENT_ID is required")
+
+# Initialize clients
 twilio_client = None
 if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
     twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+# Initialize ElevenLabs client
+elevenlabs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
 # Scheduler for recurring/scheduled calls
 scheduler = BackgroundScheduler()
@@ -32,13 +45,79 @@ jobs = {}
 def health_check():
     return jsonify({
         "status": "healthy",
-        "features": ["inbound", "outbound", "scheduled", "batch"],
-        "timestamp": datetime.utcnow().isoformat()
+        "features": ["inbound", "outbound", "scheduled", "batch", "elevenlabs"],
+        "timestamp": datetime.utcnow().isoformat(),
+        "elevenlabs_configured": bool(ELEVENLABS_API_KEY and AGENT_ID)
     })
+
+# ========================================
+# ELEVENLABS + TELNYX OUTBOUND CALLS
+# ========================================
+
+@app.route('/api/elevenlabs/call', methods=['POST'])
+def make_elevenlabs_call():
+    """Make an outbound AI voice call using ElevenLabs conversational AI"""
+    data = request.json
+    to_number = data.get('to')
+
+    if not to_number:
+        return jsonify({"error": "Missing required field: to"}), 400
+
+    if not ELEVENLABS_API_KEY or not AGENT_ID:
+        return jsonify({"error": "ElevenLabs not configured. Set ELEVENLABS_API_KEY and AGENT_ID"}), 500
+
+    try:
+        # Use ElevenLabs conversational AI to initiate the call
+        # This uses their agent to make an intelligent outbound call
+        response = elevenlabs_client.conversational_ai.create_call(
+            agent_id=AGENT_ID,
+            phone_number=to_number
+        )
+
+        return jsonify({
+            "success": True,
+            "call_id": response.call_id,
+            "status": "initiated",
+            "to": to_number,
+            "agent_id": AGENT_ID,
+            "provider": "elevenlabs"
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/webhook', methods=['POST'])
+def elevenlabs_webhook():
+    """Handle ElevenLabs webhook events for call status updates"""
+    try:
+        event_data = request.json
+        event_type = event_data.get('type')
+        call_id = event_data.get('call_id')
+
+        print(f"[ElevenLabs Webhook] Event: {event_type}, Call ID: {call_id}")
+        print(f"[ElevenLabs Webhook] Full data: {event_data}")
+
+        # Process different event types
+        if event_type == 'call.started':
+            print(f"Call {call_id} has started")
+        elif event_type == 'call.ended':
+            print(f"Call {call_id} has ended")
+        elif event_type == 'call.failed':
+            print(f"Call {call_id} has failed")
+
+        return jsonify({"status": "received"}), 200
+
+    except Exception as e:
+        print(f"[ElevenLabs Webhook] Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# ========================================
+# TWILIO OUTBOUND CALLS (LEGACY)
+# ========================================
 
 @app.route('/api/call', methods=['POST'])
 def make_call():
-    """Make an outbound AI voice call"""
+    """Make an outbound AI voice call using Twilio"""
     data = request.json
     to = data.get('to')
     message = data.get('message')
@@ -67,7 +146,8 @@ def make_call():
             "call_sid": call.sid,
             "status": call.status,
             "to": to,
-            "from": TWILIO_PHONE_NUMBER
+            "from": TWILIO_PHONE_NUMBER,
+            "provider": "twilio"
         })
 
     except Exception as e:
