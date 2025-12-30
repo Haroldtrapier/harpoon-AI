@@ -1,0 +1,11 @@
+[build]
+builder = "nix"
+nixpacks.toml = "nixpacks.toml"
+
+[deploy]
+startCommand = "gunicorn app:app --bind 0.0.0.0:${PORT:-8000}"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+
+[env]
+PORT = "8000"
