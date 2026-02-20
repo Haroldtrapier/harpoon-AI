@@ -1,57 +1,53 @@
 
 from flask import Flask, request, jsonify
 import os
+import json
+import uuid
+import requests
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 import telnyx
-from elevenlabs.client import ElevenLabs
+from openai import OpenAI
 
 app = Flask(__name__)
 
-# Configuration
+# ========================================
+# CONFIGURATION
+# ========================================
+
 TELNYX_API_KEY = os.environ.get('TELNYX_API_KEY', '')
 TELNYX_PHONE_NUMBER = os.environ.get('TELNYX_PHONE_NUMBER', '+17047418085')
+TELNYX_CONNECTION_ID = os.environ.get('TELNYX_CONNECTION_ID', '2817778635732157957')
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY', '')
+AGENT_ID = os.environ.get('AGENT_ID', '')
+BASE_URL = os.environ.get('BASE_URL', 'https://web-production-47d4.up.railway.app')
 
-# ElevenLabs Configuration
-ELEVENLABS_API_KEY = os.getenv('ELEVENLABS_API_KEY')
-if not ELEVENLABS_API_KEY:
-    raise ValueError("ELEVENLABS_API_KEY is required")
+# ========================================
+# CLIENT INITIALIZATION
+# ========================================
 
-AGENT_ID = os.getenv('AGENT_ID')
-if not AGENT_ID:
-    raise ValueError("AGENT_ID is required")
+openai_client = None
+if OPENAI_API_KEY:
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    print(f"[Harpoon] OpenAI client initialized")
 
-# Initialize clients
-telnyx_client = None
 if TELNYX_API_KEY:
     telnyx.api_key = TELNYX_API_KEY
-    print(f"✅ Telnyx initialized with phone: {TELNYX_PHONE_NUMBER}")
+    print(f"[Harpoon] Telnyx initialized with phone: {TELNYX_PHONE_NUMBER}")
 
-# Initialize ElevenLabs client
-elevenlabs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+print(f"[Harpoon] ElevenLabs configured: {bool(ELEVENLABS_API_KEY and AGENT_ID)}")
 
-# Scheduler for recurring/scheduled calls
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-# In-memory job storage (use database in production)
+# In-memory storage (use a database in production)
 jobs = {}
 active_calls = {}
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    return jsonify({
-        "status": "healthy",
-        "features": ["inbound", "outbound", "scheduled", "batch", "elevenlabs", "telnyx"],
-        "timestamp": datetime.utcnow().isoformat(),
-        "telnyx_configured": bool(TELNYX_API_KEY),
-        "elevenlabs_configured": bool(ELEVENLABS_API_KEY and AGENT_ID),
-        "phone_number": TELNYX_PHONE_NUMBER
-    })
+conversations = {}
 
 # ========================================
-# HARPER - INBOUND CALL AI ASSISTANT
+# HARPER - SYSTEM PROMPT & GREETING
 # ========================================
 
 HARPER_GREETING = """Thanks for calling Trapier Management. I'm Harold's AI assistant Harper. How can I help you today?"""
@@ -104,10 +100,10 @@ PROPERTY MANAGEMENT/JANITORIAL: Work orders, tenant communication, vendors, bill
 For other industries: "Most businesses see 20-35% cost reduction and save 15-25 hours weekly with AI automation."
 
 # QUALIFICATION CRITERIA (ALL MUST BE TRUE)
-✅ Has operational pain point (not just curious)
-✅ Budget authority OR can connect to decision maker
-✅ Timeline: Willing to implement in next 90 days
-✅ Open to 30-minute discovery call
+- Has operational pain point (not just curious)
+- Budget authority OR can connect to decision maker
+- Timeline: Willing to implement in next 90 days
+- Open to 30-minute discovery call
 
 # OBJECTION HANDLING
 "How much does this cost?" → "Investment varies by scope, but most clients see positive ROI in 60-90 days. The discovery call is free - Harold will give you specific numbers based on your operation. Fair enough?"
@@ -141,21 +137,192 @@ If not ready: "No worries. If things change, Harold's info is on trapiermanageme
 You represent a veteran-owned business. Be professional, direct, and respectful. Your job is to qualify good fits and get them on Harold's calendar - not to close deals. Harold closes deals. You book meetings.
 """
 
+# ========================================
+# HEALTH & STATUS
+# ========================================
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({
+        "status": "healthy",
+        "service": "harpoon-ai",
+        "features": ["inbound", "outbound", "scheduled", "batch", "elevenlabs", "telnyx", "openai", "harper-chat"],
+        "timestamp": datetime.utcnow().isoformat(),
+        "connections": {
+            "telnyx": bool(TELNYX_API_KEY),
+            "openai": bool(OPENAI_API_KEY),
+            "elevenlabs": bool(ELEVENLABS_API_KEY and AGENT_ID),
+        },
+        "phone_number": TELNYX_PHONE_NUMBER,
+        "agent_id": AGENT_ID[:20] + "..." if AGENT_ID and len(AGENT_ID) > 20 else AGENT_ID
+    })
+
+@app.route('/api/harpoon/status', methods=['GET'])
+def harpoon_status():
+    """Full Harpoon AI system status with all connection details"""
+    status = {
+        "service": "harpoon-ai",
+        "version": "2.0.0",
+        "timestamp": datetime.utcnow().isoformat(),
+        "connections": {
+            "openai": {
+                "connected": bool(openai_client),
+                "model": "gpt-4o",
+                "status": "ready" if openai_client else "not_configured"
+            },
+            "elevenlabs": {
+                "connected": bool(ELEVENLABS_API_KEY and AGENT_ID),
+                "agent_id": AGENT_ID[:20] + "..." if AGENT_ID and len(AGENT_ID) > 20 else AGENT_ID,
+                "status": "ready" if (ELEVENLABS_API_KEY and AGENT_ID) else "not_configured"
+            },
+            "telnyx": {
+                "connected": bool(TELNYX_API_KEY),
+                "phone_number": TELNYX_PHONE_NUMBER,
+                "connection_id": TELNYX_CONNECTION_ID,
+                "status": "ready" if TELNYX_API_KEY else "not_configured"
+            }
+        },
+        "endpoints": {
+            "harper_chat": "/api/harper/chat",
+            "harper_greeting": "/api/harper/greeting",
+            "harper_inbound": "/api/harper/inbound",
+            "harper_signed_url": "/api/harper/signed-url",
+            "telnyx_call": "/api/telnyx/call",
+            "telnyx_webhook": "/api/telnyx/webhook",
+            "telnyx_inbound_webhook": "/api/telnyx/inbound",
+            "elevenlabs_call": "/api/elevenlabs/call",
+            "elevenlabs_webhook": "/webhook",
+            "batch_calls": "/api/call/batch",
+            "schedule_call": "/api/call/schedule",
+            "recurring_call": "/api/call/recurring",
+        },
+        "active_calls": len(active_calls),
+        "active_conversations": len(conversations),
+        "scheduled_jobs": len(jobs),
+        "base_url": BASE_URL
+    }
+    return jsonify(status)
+
+# ========================================
+# HARPER - AI CHAT (OpenAI)
+# ========================================
+
+@app.route('/api/harper/chat', methods=['POST'])
+def harper_chat():
+    """Chat with Harper via text using OpenAI GPT-4o.
+    Maintains conversation history per session."""
+    if not openai_client:
+        return jsonify({"error": "OpenAI not configured. Set OPENAI_API_KEY."}), 500
+
+    data = request.json or {}
+    message = data.get('message', '').strip()
+    session_id = data.get('session_id', str(uuid.uuid4()))
+
+    if not message:
+        return jsonify({"error": "Missing required field: message"}), 400
+
+    if session_id not in conversations:
+        conversations[session_id] = {
+            "messages": [{"role": "system", "content": HARPER_SYSTEM_PROMPT}],
+            "created_at": datetime.utcnow().isoformat(),
+            "metadata": {}
+        }
+
+    conversations[session_id]["messages"].append({
+        "role": "user",
+        "content": message
+    })
+
+    try:
+        response = openai_client.chat.completions.create(
+            model=data.get('model', 'gpt-4o'),
+            messages=conversations[session_id]["messages"],
+            temperature=0.7,
+            max_tokens=500,
+        )
+
+        assistant_message = response.choices[0].message.content
+
+        conversations[session_id]["messages"].append({
+            "role": "assistant",
+            "content": assistant_message
+        })
+
+        return jsonify({
+            "success": True,
+            "assistant": "harper",
+            "response": assistant_message,
+            "session_id": session_id,
+            "model": response.model,
+            "usage": {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            }
+        })
+
+    except Exception as e:
+        print(f"[Harper Chat] Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/harper/conversations', methods=['GET'])
+def list_conversations():
+    """List all active Harper conversation sessions"""
+    summary = {}
+    for sid, conv in conversations.items():
+        user_msgs = [m for m in conv["messages"] if m["role"] == "user"]
+        summary[sid] = {
+            "created_at": conv["created_at"],
+            "message_count": len(conv["messages"]),
+            "user_messages": len(user_msgs),
+            "metadata": conv.get("metadata", {})
+        }
+    return jsonify({"conversations": summary, "count": len(conversations)})
+
+@app.route('/api/harper/conversations/<session_id>', methods=['GET'])
+def get_conversation(session_id):
+    """Get full conversation history for a session"""
+    if session_id not in conversations:
+        return jsonify({"error": "Conversation not found"}), 404
+    conv = conversations[session_id]
+    visible_messages = [m for m in conv["messages"] if m["role"] != "system"]
+    return jsonify({
+        "session_id": session_id,
+        "created_at": conv["created_at"],
+        "messages": visible_messages,
+        "message_count": len(visible_messages)
+    })
+
+@app.route('/api/harper/conversations/<session_id>', methods=['DELETE'])
+def end_conversation(session_id):
+    """End and archive a conversation session"""
+    if session_id not in conversations:
+        return jsonify({"error": "Conversation not found"}), 404
+    conv = conversations.pop(session_id)
+    return jsonify({
+        "success": True,
+        "session_id": session_id,
+        "message_count": len(conv["messages"]),
+        "status": "ended"
+    })
+
+# ========================================
+# HARPER - INBOUND CALL HANDLING
+# ========================================
+
 @app.route('/api/harper/inbound', methods=['POST'])
 def harper_inbound_setup():
     """Set up Harper as the inbound call AI assistant"""
-    """This endpoint configures an inbound call to use Harper"""
     data = request.json or {}
     call_id = data.get('call_id')
     phone_number = data.get('phone_number')
-    
+
     try:
         if not ELEVENLABS_API_KEY or not AGENT_ID:
             return jsonify({
                 "error": "Harper not configured. Set ELEVENLABS_API_KEY and AGENT_ID"
             }), 500
-        
-        # Store inbound call information
+
         inbound_call = {
             'call_id': call_id,
             'phone_number': phone_number,
@@ -164,17 +331,18 @@ def harper_inbound_setup():
             'status': 'active',
             'created_at': datetime.utcnow().isoformat()
         }
-        
+
         if call_id:
             active_calls[call_id] = inbound_call
-        
+
         return jsonify({
             "success": True,
             "assistant": "harper",
             "greeting": HARPER_GREETING,
+            "agent_id": AGENT_ID,
             "status": "ready"
         }), 200
-    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -188,7 +356,192 @@ def get_harper_greeting():
     }), 200
 
 # ========================================
-# TELNYX OUTBOUND CALLS
+# HARPER - ELEVENLABS SIGNED URL (Web Widget)
+# ========================================
+
+@app.route('/api/harper/signed-url', methods=['GET'])
+def harper_signed_url():
+    """Get a signed URL to start a conversation with Harper via ElevenLabs.
+    Use this for web-based voice conversations (browser widget)."""
+    if not ELEVENLABS_API_KEY or not AGENT_ID:
+        return jsonify({
+            "error": "ElevenLabs not configured. Set ELEVENLABS_API_KEY and AGENT_ID."
+        }), 500
+
+    try:
+        response = requests.get(
+            f"https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id={AGENT_ID}",
+            headers={"xi-api-key": ELEVENLABS_API_KEY},
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                "success": True,
+                "signed_url": data.get("signed_url"),
+                "agent_id": AGENT_ID,
+                "assistant": "harper"
+            })
+        else:
+            return jsonify({
+                "error": f"ElevenLabs API returned {response.status_code}",
+                "details": response.text
+            }), response.status_code
+
+    except Exception as e:
+        print(f"[Harper Signed URL] Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# ========================================
+# TELNYX - INBOUND CALL WEBHOOK
+# ========================================
+
+@app.route('/api/telnyx/inbound', methods=['POST'])
+def telnyx_inbound_webhook():
+    """Handle inbound calls from Telnyx and route them to Harper (ElevenLabs agent).
+    Configure this URL in Telnyx Dashboard under your phone number's voice settings."""
+    try:
+        data = request.json or {}
+        event_type = data.get('data', {}).get('event_type')
+        payload = data.get('data', {}).get('payload', {})
+        call_control_id = payload.get('call_control_id')
+        caller_number = payload.get('from', '')
+        called_number = payload.get('to', '')
+
+        print(f"[Telnyx Inbound] Event: {event_type}, From: {caller_number}, Call ID: {call_control_id}")
+
+        if event_type == 'call.initiated':
+            print(f"[Telnyx Inbound] Incoming call from {caller_number}")
+            active_calls[call_control_id] = {
+                'direction': 'inbound',
+                'from': caller_number,
+                'to': called_number,
+                'status': 'ringing',
+                'assistant': 'harper',
+                'created_at': datetime.utcnow().isoformat()
+            }
+            try:
+                call = telnyx.Call()
+                call.call_control_id = call_control_id
+                call.answer()
+                print(f"[Telnyx Inbound] Answered call {call_control_id}")
+            except Exception as e:
+                print(f"[Telnyx Inbound] Error answering: {str(e)}")
+
+        elif event_type == 'call.answered':
+            print(f"[Telnyx Inbound] Call {call_control_id} answered, connecting to Harper...")
+            if call_control_id in active_calls:
+                active_calls[call_control_id]['status'] = 'answered'
+
+            if ELEVENLABS_API_KEY and AGENT_ID:
+                try:
+                    el_response = requests.post(
+                        "https://api.elevenlabs.io/v1/convai/twilio/outbound_call",
+                        headers={
+                            "xi-api-key": ELEVENLABS_API_KEY,
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "agent_id": AGENT_ID,
+                            "agent_phone_number_id": AGENT_ID,
+                        },
+                        timeout=15
+                    )
+                    print(f"[Telnyx Inbound] ElevenLabs connect response: {el_response.status_code}")
+                except Exception as e:
+                    print(f"[Telnyx Inbound] ElevenLabs connect failed: {str(e)}")
+
+            try:
+                call = telnyx.Call()
+                call.call_control_id = call_control_id
+                call.speak(
+                    payload=HARPER_GREETING,
+                    voice='female',
+                    language='en-US'
+                )
+            except Exception as e:
+                print(f"[Telnyx Inbound] TTS fallback failed: {str(e)}")
+
+        elif event_type == 'call.speak.ended':
+            print(f"[Telnyx Inbound] Greeting finished for {call_control_id}")
+            if call_control_id in active_calls:
+                active_calls[call_control_id]['status'] = 'in_conversation'
+
+            try:
+                call = telnyx.Call()
+                call.call_control_id = call_control_id
+                call.gather(
+                    input_type='speech',
+                    language='en-US',
+                    timeout=10,
+                    inter_digit_timeout=5
+                )
+            except Exception as e:
+                print(f"[Telnyx Inbound] Gather failed: {str(e)}")
+
+        elif event_type == 'call.gather.ended':
+            speech_result = payload.get('speech', {}).get('result', '')
+            print(f"[Telnyx Inbound] Caller said: {speech_result}")
+
+            if speech_result and openai_client:
+                call_info = active_calls.get(call_control_id, {})
+                session_id = f"call_{call_control_id}"
+
+                if session_id not in conversations:
+                    conversations[session_id] = {
+                        "messages": [{"role": "system", "content": HARPER_SYSTEM_PROMPT}],
+                        "created_at": datetime.utcnow().isoformat(),
+                        "metadata": {
+                            "call_control_id": call_control_id,
+                            "caller": call_info.get('from', ''),
+                            "type": "inbound_voice"
+                        }
+                    }
+
+                conversations[session_id]["messages"].append({
+                    "role": "user",
+                    "content": speech_result
+                })
+
+                try:
+                    ai_response = openai_client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=conversations[session_id]["messages"],
+                        temperature=0.7,
+                        max_tokens=200,
+                    )
+                    harper_reply = ai_response.choices[0].message.content
+                    conversations[session_id]["messages"].append({
+                        "role": "assistant",
+                        "content": harper_reply
+                    })
+
+                    call = telnyx.Call()
+                    call.call_control_id = call_control_id
+                    call.speak(
+                        payload=harper_reply,
+                        voice='female',
+                        language='en-US'
+                    )
+                    print(f"[Telnyx Inbound] Harper replied: {harper_reply[:80]}...")
+                except Exception as e:
+                    print(f"[Telnyx Inbound] AI response failed: {str(e)}")
+
+        elif event_type == 'call.hangup':
+            print(f"[Telnyx Inbound] Call {call_control_id} ended")
+            if call_control_id in active_calls:
+                active_calls[call_control_id]['status'] = 'completed'
+                active_calls[call_control_id]['ended_at'] = datetime.utcnow().isoformat()
+
+        return jsonify({"status": "received"}), 200
+
+    except Exception as e:
+        print(f"[Telnyx Inbound] Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# ========================================
+# TELNYX - OUTBOUND CALLS
 # ========================================
 
 @app.route('/api/telnyx/call', methods=['POST'])
@@ -205,16 +558,15 @@ def make_telnyx_call():
         return jsonify({"error": "Telnyx not configured. Set TELNYX_API_KEY"}), 500
 
     try:
-        # Initiate the call with Telnyx
         call = telnyx.Call.create(
-            connection_id=os.getenv('TELNYX_CONNECTION_ID', '2817778635732157957'),
+            connection_id=TELNYX_CONNECTION_ID,
             to=to_number,
             from_=TELNYX_PHONE_NUMBER,
-            webhook_url=request.url_root.rstrip('/') + '/api/telnyx/webhook'
+            webhook_url=BASE_URL + '/api/telnyx/webhook'
         )
 
-        # Store call info
         active_calls[call.call_control_id] = {
+            'direction': 'outbound',
             'to': to_number,
             'from': TELNYX_PHONE_NUMBER,
             'message': message,
@@ -236,7 +588,7 @@ def make_telnyx_call():
 
 @app.route('/api/telnyx/webhook', methods=['POST'])
 def telnyx_webhook():
-    """Handle Telnyx webhook events"""
+    """Handle Telnyx webhook events for outbound calls"""
     try:
         data = request.json
         event_type = data.get('data', {}).get('event_type')
@@ -245,29 +597,26 @@ def telnyx_webhook():
         print(f"[Telnyx Webhook] Event: {event_type}, Call ID: {call_control_id}")
 
         if event_type == 'call.initiated':
-            # Call was initiated successfully
             print(f"Call {call_control_id} initiated")
 
         elif event_type == 'call.answered':
-            # Call was answered - play the message
             print(f"Call {call_control_id} answered!")
-
-            # Get the message to speak
             call_info = active_calls.get(call_control_id, {})
             message = call_info.get('message', 'Hello! This is an AI voice agent.')
 
-            # Speak the message using Telnyx TTS
-            telnyx.Call.speak(
-                call_control_id,
+            call = telnyx.Call()
+            call.call_control_id = call_control_id
+            call.speak(
                 payload=message,
                 voice='female',
                 language='en-US'
             )
 
         elif event_type == 'call.speak.ended':
-            # TTS finished - hang up
             print(f"Speech ended for {call_control_id}, hanging up...")
-            telnyx.Call.hangup(call_control_id)
+            call = telnyx.Call()
+            call.call_control_id = call_control_id
+            call.hangup()
 
         elif event_type == 'call.hangup':
             print(f"Call {call_control_id} hung up")
@@ -281,7 +630,7 @@ def telnyx_webhook():
         return jsonify({"error": str(e)}), 500
 
 # ========================================
-# ELEVENLABS OUTBOUND CALLS
+# ELEVENLABS - OUTBOUND CALLS
 # ========================================
 
 @app.route('/api/elevenlabs/call', methods=['POST'])
@@ -289,6 +638,7 @@ def make_elevenlabs_call():
     """Make an outbound AI voice call using ElevenLabs conversational AI"""
     data = request.json
     to_number = data.get('to')
+    first_message = data.get('first_message')
 
     if not to_number:
         return jsonify({"error": "Missing required field: to"}), 400
@@ -297,20 +647,51 @@ def make_elevenlabs_call():
         return jsonify({"error": "ElevenLabs not configured. Set ELEVENLABS_API_KEY and AGENT_ID"}), 500
 
     try:
-        # Use ElevenLabs conversational AI to initiate the call
-        response = elevenlabs_client.conversational_ai.create_call(
-            agent_id=AGENT_ID,
-            phone_number=to_number
+        payload = {
+            "agent_id": AGENT_ID,
+        }
+        if first_message:
+            payload["first_message"] = first_message
+
+        response = requests.post(
+            f"https://api.elevenlabs.io/v1/convai/conversation/create_phone_call",
+            headers={
+                "xi-api-key": ELEVENLABS_API_KEY,
+                "Content-Type": "application/json"
+            },
+            json={
+                **payload,
+                "customer_phone_number": to_number,
+                "agent_phone_number_id": AGENT_ID
+            },
+            timeout=30
         )
 
-        return jsonify({
-            "success": True,
-            "call_id": response.call_id,
-            "status": "initiated",
-            "to": to_number,
-            "agent_id": AGENT_ID,
-            "provider": "elevenlabs"
-        })
+        if response.status_code in (200, 201):
+            result = response.json()
+            call_id = result.get("call_id", str(uuid.uuid4()))
+            active_calls[call_id] = {
+                'direction': 'outbound',
+                'to': to_number,
+                'provider': 'elevenlabs',
+                'agent_id': AGENT_ID,
+                'status': 'initiated',
+                'created_at': datetime.utcnow().isoformat()
+            }
+            return jsonify({
+                "success": True,
+                "call_id": call_id,
+                "status": "initiated",
+                "to": to_number,
+                "agent_id": AGENT_ID,
+                "provider": "elevenlabs",
+                "details": result
+            })
+        else:
+            return jsonify({
+                "error": f"ElevenLabs API returned {response.status_code}",
+                "details": response.text
+            }), response.status_code
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -328,13 +709,22 @@ def elevenlabs_webhook():
 
         print(f"[ElevenLabs Webhook] Event: {event_type}, Call ID: {call_id}")
 
-        # Process different event types
         if event_type == 'call.started':
             print(f"Call {call_id} has started")
+            if call_id and call_id in active_calls:
+                active_calls[call_id]['status'] = 'in_progress'
         elif event_type == 'call.ended':
             print(f"Call {call_id} has ended")
+            if call_id and call_id in active_calls:
+                active_calls[call_id]['status'] = 'completed'
+                active_calls[call_id]['ended_at'] = datetime.utcnow().isoformat()
+            transcript = event_data.get('transcript')
+            if transcript and call_id:
+                print(f"[ElevenLabs Webhook] Transcript for {call_id}: {transcript[:200]}...")
         elif event_type == 'call.failed':
             print(f"Call {call_id} has failed")
+            if call_id and call_id in active_calls:
+                active_calls[call_id]['status'] = 'failed'
 
         return jsonify({"status": "received"}), 200
 
@@ -351,13 +741,12 @@ def batch_calls():
     """Make multiple calls at once (supports both Telnyx and ElevenLabs)"""
     data = request.json
     calls = data.get('calls', [])
-    provider = data.get('provider', 'telnyx')  # 'telnyx' or 'elevenlabs'
-    delay = data.get('delay', 2)  # seconds between calls
+    provider = data.get('provider', 'telnyx')
+    delay = data.get('delay', 2)
 
     results = []
     for i, call_data in enumerate(calls):
         try:
-            # Add delay between calls
             if i > 0:
                 import time
                 time.sleep(delay)
@@ -381,17 +770,14 @@ def schedule_call():
     data = request.json
     to = data.get('to')
     message = data.get('message')
-    scheduled_time = data.get('scheduled_time')  # ISO format
+    scheduled_time = data.get('scheduled_time')
     provider = data.get('provider', 'telnyx')
 
     if not all([to, message, scheduled_time]):
         return jsonify({"error": "Missing required fields"}), 400
 
-    # Parse the scheduled time
-    from datetime import datetime
     schedule_dt = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
 
-    # Schedule the job
     if provider == 'elevenlabs':
         func = make_elevenlabs_call_internal
         args = [to]
@@ -423,22 +809,21 @@ def recurring_call():
     data = request.json
     to = data.get('to')
     message = data.get('message')
-    interval = data.get('interval')  # 'daily' or 'weekly'
-    time = data.get('time')  # HH:MM format
+    interval = data.get('interval')
+    time_str = data.get('time')
     provider = data.get('provider', 'telnyx')
 
-    if not all([to, message, interval, time]):
+    if not all([to, message, interval, time_str]):
         return jsonify({"error": "Missing required fields"}), 400
 
-    hour, minute = map(int, time.split(':'))
+    hour, minute = map(int, time_str.split(':'))
 
-    trigger = 'cron'
     kwargs = {'hour': hour, 'minute': minute}
 
     if interval == 'daily':
-        pass  # Just hour and minute
+        pass
     elif interval == 'weekly':
-        kwargs['day_of_week'] = 'mon'  # Default to Monday
+        kwargs['day_of_week'] = 'mon'
     else:
         return jsonify({"error": "Invalid interval. Use 'daily' or 'weekly'"}), 400
 
@@ -451,7 +836,7 @@ def recurring_call():
 
     job = scheduler.add_job(
         func,
-        trigger,
+        'cron',
         args=args,
         id=f"recurring_{datetime.utcnow().timestamp()}",
         **kwargs
@@ -461,12 +846,12 @@ def recurring_call():
         "to": to,
         "message": message,
         "interval": interval,
-        "time": time,
+        "time": time_str,
         "provider": provider,
         "status": "active"
     }
 
-    return jsonify({"job_id": job.id, "interval": interval, "time": time, "provider": provider})
+    return jsonify({"job_id": job.id, "interval": interval, "time": time_str, "provider": provider})
 
 @app.route('/api/jobs', methods=['GET'])
 def list_jobs():
@@ -486,7 +871,7 @@ def cancel_job(job_id):
 
 @app.route('/api/calls', methods=['GET'])
 def list_calls():
-    """List all active calls"""
+    """List all active and completed calls"""
     return jsonify({"active_calls": active_calls, "count": len(active_calls)})
 
 # ========================================
@@ -499,13 +884,14 @@ def make_telnyx_call_internal(to, message):
         raise Exception("Telnyx not configured")
 
     call = telnyx.Call.create(
-        connection_id=os.getenv('TELNYX_CONNECTION_ID', '2817778635732157957'),
+        connection_id=TELNYX_CONNECTION_ID,
         to=to,
         from_=TELNYX_PHONE_NUMBER,
-        webhook_url=os.environ.get('BASE_URL', 'https://web-production-47d4.up.railway.app') + '/api/telnyx/webhook'
+        webhook_url=BASE_URL + '/api/telnyx/webhook'
     )
 
     active_calls[call.call_control_id] = {
+        'direction': 'outbound',
         'to': to,
         'message': message,
         'status': 'initiated',
@@ -523,21 +909,58 @@ def make_elevenlabs_call_internal(to):
     if not ELEVENLABS_API_KEY or not AGENT_ID:
         raise Exception("ElevenLabs not configured")
 
-    response = elevenlabs_client.conversational_ai.create_call(
-        agent_id=AGENT_ID,
-        phone_number=to
+    response = requests.post(
+        f"https://api.elevenlabs.io/v1/convai/conversation/create_phone_call",
+        headers={
+            "xi-api-key": ELEVENLABS_API_KEY,
+            "Content-Type": "application/json"
+        },
+        json={
+            "agent_id": AGENT_ID,
+            "customer_phone_number": to,
+            "agent_phone_number_id": AGENT_ID
+        },
+        timeout=30
     )
 
-    return {
-        "success": True,
-        "call_id": response.call_id,
-        "to": to
-    }
+    if response.status_code in (200, 201):
+        result = response.json()
+        return {
+            "success": True,
+            "call_id": result.get("call_id"),
+            "to": to
+        }
+    else:
+        raise Exception(f"ElevenLabs API error: {response.status_code} - {response.text}")
+
+# ========================================
+# STARTUP
+# ========================================
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"🚀 Starting Harpoon server on port {port}")
-    print(f"📞 Telnyx: {TELNYX_PHONE_NUMBER}")
-    print(f"🤖 ElevenLabs Agent: {AGENT_ID[:12]}..." if len(AGENT_ID) > 12 else AGENT_ID)
-    print(f"✅ Outbound calling ready!")
+    print(f"")
+    print(f"{'='*50}")
+    print(f"  HARPOON AI - Voice Agent Platform v2.0")
+    print(f"{'='*50}")
+    print(f"  Port:        {port}")
+    print(f"  Telnyx:      {'CONNECTED' if TELNYX_API_KEY else 'NOT CONFIGURED'} ({TELNYX_PHONE_NUMBER})")
+    print(f"  OpenAI:      {'CONNECTED' if OPENAI_API_KEY else 'NOT CONFIGURED'}")
+    print(f"  ElevenLabs:  {'CONNECTED' if ELEVENLABS_API_KEY and AGENT_ID else 'NOT CONFIGURED'}")
+    print(f"  Harper Chat: {'READY' if openai_client else 'NEEDS OPENAI_API_KEY'}")
+    print(f"  Base URL:    {BASE_URL}")
+    print(f"{'='*50}")
+    print(f"  Endpoints:")
+    print(f"    GET  /health                    - System health")
+    print(f"    GET  /api/harpoon/status         - Full status")
+    print(f"    POST /api/harper/chat            - Chat with Harper (text)")
+    print(f"    GET  /api/harper/signed-url      - ElevenLabs web widget URL")
+    print(f"    POST /api/harper/inbound         - Inbound call setup")
+    print(f"    POST /api/telnyx/inbound         - Telnyx inbound webhook")
+    print(f"    POST /api/telnyx/call            - Telnyx outbound call")
+    print(f"    POST /api/elevenlabs/call        - ElevenLabs outbound call")
+    print(f"    POST /api/call/batch             - Batch calls")
+    print(f"    POST /api/call/schedule          - Schedule a call")
+    print(f"{'='*50}")
+    print(f"")
     app.run(host='0.0.0.0', port=port, debug=False)
