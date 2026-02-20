@@ -52,6 +52,81 @@ conversations = {}
 
 HARPER_GREETING = """Thanks for calling Trapier Management. I'm Harold's AI assistant Harper. How can I help you today?"""
 
+HARPER_OUTBOUND_SYSTEM_PROMPT = """You are Harper, Harold Trapier's AI assistant representing Trapier Management LLC, a Service-Connected Disabled Veteran-Owned Small Business specializing in AI transformation for traditional industries.
+
+YOU ARE MAKING AN OUTBOUND CALL. You called them. Be upfront about that.
+
+# VOICE OPTIMIZATION RULES
+- Keep responses under 3 sentences (20 seconds max)
+- Speak naturally with verbal fillers: "Well...", "You know...", "Actually..."
+- Don't sound scripted - be conversational and direct
+- Use pauses naturally - don't rush
+- If they seem busy or annoyed, offer to call back at a better time
+- Be respectful - you're interrupting their day
+
+# OUTBOUND CALL OPENING
+Your opening depends on the context provided. Use one of these patterns:
+
+**Cold outreach (no prior contact):**
+"Hey {{prospect_name}}, this is Harper calling from Trapier Management. Harold Trapier asked me to reach out - we help {{industry}} companies save serious time with AI automation. Got a quick minute?"
+
+**Follow-up (they showed interest before):**
+"Hey {{prospect_name}}, this is Harper from Trapier Management calling back. You had spoken with us about {{reason}}. Just wanted to follow up and see if you're still thinking about that."
+
+**Referral:**
+"Hey {{prospect_name}}, this is Harper from Trapier Management. {{referrer}} mentioned you might be dealing with {{pain_point}} and suggested we connect. Got a second?"
+
+# IF THEY SAY THEY'RE BUSY
+"No worries at all. When's a better time to call back? I'll make sure we reach you then."
+Store their preferred callback time and move on. Don't push.
+
+# IF THEY ASK WHO YOU ARE / HOW YOU GOT THEIR NUMBER
+Be honest and direct:
+"We're Trapier Management - Harold Trapier's company. We help traditional businesses automate operations with AI. {{reason_for_contact}}"
+
+# OUTBOUND CALL FLOW
+**Step 1 - Introduce**: State who you are and why you're calling (max 2 sentences)
+**Step 2 - Permission**: "Got a quick minute?" or "Is this a good time?"
+**Step 3 - Hook**: Share one specific pain point + ROI for their industry
+**Step 4 - Qualify**: Same criteria as inbound - pain point, authority, timeline
+**Step 5 - Book**: "Harold would love to show you how this works. He's got Tuesday at 10 AM or Thursday at 2 PM Eastern - which works?"
+
+# INDUSTRY PAIN POINTS & ROI
+CONSTRUCTION/CONTRACTORS: Save 15-25 hrs/week, reduce delays 30%, cut admin 25%
+TRUCKING/LOGISTICS: Reduce fuel 8-15%, save 12-20 hrs/week dispatching, cut overtime 20%
+AGRICULTURE: Increase yield 10-15%, reduce downtime 25%, save 10-18 hrs/week
+HVAC/PLUMBING/ELECTRICAL: Book 20% more jobs, reduce no-shows 40%, save 15-20 hrs/week
+RESTAURANTS/FOOD SERVICE: Reduce waste 20-30%, optimize labor 15%, save 10-15 hrs/week
+WASTE MANAGEMENT: Cut fuel 12-18%, reduce missed pickups 35%, save 12-18 hrs/week
+RETAIL/CONVENIENCE/GAS: Reduce stockouts 40%, optimize staffing 20%, save 8-12 hrs/week
+MANUFACTURING: Increase output 15-25%, reduce defects 30%, save 20-30 hrs/week
+AUTO REPAIR/BODY SHOPS: Book 25% more jobs, reduce delays 35%, save 12-18 hrs/week
+PROPERTY MANAGEMENT/JANITORIAL: Reduce response 50%, automate billing 100%, save 15-20 hrs/week
+For other industries: "Most businesses see 20-35% cost reduction and save 15-25 hours weekly."
+
+# OBJECTION HANDLING (OUTBOUND-SPECIFIC)
+"I'm not interested" → "Totally fair. Just so you know, most {{industry}} companies we talk to are saving 15+ hours a week. If that ever becomes relevant, Harold's at info@trapiermanagement.com. Thanks for your time."
+"How did you get my number?" → Be honest about the source. "We found you through {{source}}. Apologies if this caught you off guard - I'll keep it quick."
+"Is this a sales call?" → "Yeah, I'll be straight with you. We help {{industry}} businesses automate the stuff that eats up your time. If it's not relevant, I'll let you go. But most owners I talk to are curious when they hear the numbers."
+"Call me back later" → "No problem. When's good for you?" Then schedule the callback.
+
+# RULES FOR OUTBOUND
+- NEVER be pushy on an outbound call - you interrupted their day
+- If they say no or not interested once, offer info and exit gracefully
+- If they're clearly annoyed, apologize and hang up immediately
+- Always offer to call back at a better time
+- Keep the call under 5 minutes unless they're engaged
+- Get to the point fast - they didn't call you
+- Be MORE respectful than on inbound (you're the one who called)
+
+# BOOKING THE CALL
+Same as inbound: "Harold's got Tuesday at 10 AM or Thursday at 2 PM Eastern - which works better?"
+After booking: Get name, phone, email, confirm time. "Calendar invite coming your way."
+
+# REMEMBER
+You called them. Respect that. Be efficient, be honest, and get off the phone if they're not interested. Harold closes deals - you just open doors.
+"""
+
 HARPER_SYSTEM_PROMPT = """You are Harper, Harold Trapier's AI assistant representing Trapier Management LLC, a Service-Connected Disabled Veteran-Owned Small Business specializing in AI transformation for traditional industries.
 
 # VOICE OPTIMIZATION RULES
@@ -162,7 +237,7 @@ def harpoon_status():
     """Full Harpoon AI system status with all connection details"""
     status = {
         "service": "harpoon-ai",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "timestamp": datetime.utcnow().isoformat(),
         "connections": {
             "openai": {
@@ -186,9 +261,12 @@ def harpoon_status():
             "harper_chat": "/api/harper/chat",
             "harper_greeting": "/api/harper/greeting",
             "harper_inbound": "/api/harper/inbound",
+            "harper_outbound": "/api/harper/outbound",
+            "harper_followup": "/api/harper/followup",
             "harper_signed_url": "/api/harper/signed-url",
             "telnyx_call": "/api/telnyx/call",
             "telnyx_webhook": "/api/telnyx/webhook",
+            "telnyx_outbound_ai_webhook": "/api/telnyx/outbound-webhook",
             "telnyx_inbound_webhook": "/api/telnyx/inbound",
             "elevenlabs_call": "/api/elevenlabs/call",
             "elevenlabs_webhook": "/webhook",
@@ -391,6 +469,340 @@ def harper_signed_url():
 
     except Exception as e:
         print(f"[Harper Signed URL] Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# ========================================
+# HARPER - OUTBOUND CALLS (AI-Powered)
+# ========================================
+
+def _build_outbound_prompt(prospect):
+    """Build a dynamic outbound system prompt with prospect context injected."""
+    prompt = HARPER_OUTBOUND_SYSTEM_PROMPT
+    prompt = prompt.replace("{{prospect_name}}", prospect.get("name", "there"))
+    prompt = prompt.replace("{{industry}}", prospect.get("industry", "your"))
+    prompt = prompt.replace("{{reason}}", prospect.get("reason", "improving operations with AI"))
+    prompt = prompt.replace("{{pain_point}}", prospect.get("pain_point", "operational challenges"))
+    prompt = prompt.replace("{{referrer}}", prospect.get("referrer", "a colleague"))
+    prompt = prompt.replace("{{source}}", prospect.get("source", "public business listings"))
+    prompt = prompt.replace("{{reason_for_contact}}", prospect.get("reason", "We help businesses like yours save time with AI automation"))
+    return prompt
+
+def _build_outbound_greeting(prospect):
+    """Build the first thing Harper says when the prospect picks up."""
+    name = prospect.get("name", "")
+    industry = prospect.get("industry", "")
+    call_type = prospect.get("call_type", "cold")
+    reason = prospect.get("reason", "")
+
+    if call_type == "followup":
+        topic = reason or "AI automation for your business"
+        if name:
+            return f"Hey {name}, this is Harper from Trapier Management calling back. You had spoken with us about {topic}. Just wanted to follow up and see if you're still thinking about that."
+        return f"Hi, this is Harper from Trapier Management calling back about {topic}. Is this a good time?"
+
+    if call_type == "referral":
+        referrer = prospect.get("referrer", "a colleague")
+        pain = prospect.get("pain_point", "operational challenges")
+        if name:
+            return f"Hey {name}, this is Harper from Trapier Management. {referrer} mentioned you might be dealing with {pain} and suggested we connect. Got a second?"
+        return f"Hi, this is Harper from Trapier Management. {referrer} suggested we connect about {pain}. Got a quick minute?"
+
+    industry_hook = f" We help {industry} companies save serious time with AI automation." if industry else " We help businesses save serious time with AI automation."
+    if name:
+        return f"Hey {name}, this is Harper calling from Trapier Management. Harold Trapier asked me to reach out.{industry_hook} Got a quick minute?"
+    return f"Hi, this is Harper calling from Trapier Management.{industry_hook} Got a quick minute?"
+
+@app.route('/api/harper/outbound', methods=['POST'])
+def harper_outbound_call():
+    """Make an AI-powered outbound call with Harper.
+    Harper will use the prospect's context to personalize the conversation.
+
+    Supports two providers:
+      - "telnyx" (default): Dials via Telnyx, Harper converses via OpenAI + TTS
+      - "elevenlabs": Dials via ElevenLabs conversational AI agent
+
+    Required: { "to": "+1..." }
+    Optional: { "name", "company", "industry", "pain_point", "reason",
+                "call_type" ("cold"|"followup"|"referral"), "referrer",
+                "source", "provider" ("telnyx"|"elevenlabs") }
+    """
+    data = request.json or {}
+    to_number = data.get('to')
+
+    if not to_number:
+        return jsonify({"error": "Missing required field: to"}), 400
+
+    prospect = {
+        "name": data.get("name", ""),
+        "company": data.get("company", ""),
+        "industry": data.get("industry", ""),
+        "pain_point": data.get("pain_point", ""),
+        "reason": data.get("reason", ""),
+        "call_type": data.get("call_type", "cold"),
+        "referrer": data.get("referrer", ""),
+        "source": data.get("source", ""),
+    }
+
+    provider = data.get("provider", "telnyx")
+    greeting = _build_outbound_greeting(prospect)
+
+    if provider == "elevenlabs":
+        if not ELEVENLABS_API_KEY or not AGENT_ID:
+            return jsonify({"error": "ElevenLabs not configured. Set ELEVENLABS_API_KEY and AGENT_ID."}), 500
+
+        try:
+            el_payload = {
+                "agent_id": AGENT_ID,
+                "customer_phone_number": to_number,
+                "agent_phone_number_id": AGENT_ID,
+                "first_message": greeting,
+            }
+
+            response = requests.post(
+                "https://api.elevenlabs.io/v1/convai/conversation/create_phone_call",
+                headers={
+                    "xi-api-key": ELEVENLABS_API_KEY,
+                    "Content-Type": "application/json"
+                },
+                json=el_payload,
+                timeout=30
+            )
+
+            if response.status_code in (200, 201):
+                result = response.json()
+                call_id = result.get("call_id", str(uuid.uuid4()))
+                active_calls[call_id] = {
+                    'direction': 'outbound',
+                    'type': 'harper_outbound',
+                    'to': to_number,
+                    'provider': 'elevenlabs',
+                    'prospect': prospect,
+                    'greeting': greeting,
+                    'status': 'initiated',
+                    'created_at': datetime.utcnow().isoformat()
+                }
+                return jsonify({
+                    "success": True,
+                    "call_id": call_id,
+                    "status": "initiated",
+                    "to": to_number,
+                    "provider": "elevenlabs",
+                    "greeting": greeting,
+                    "prospect": prospect,
+                    "details": result
+                })
+            else:
+                return jsonify({
+                    "error": f"ElevenLabs API returned {response.status_code}",
+                    "details": response.text
+                }), response.status_code
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    else:
+        if not TELNYX_API_KEY:
+            return jsonify({"error": "Telnyx not configured. Set TELNYX_API_KEY."}), 500
+
+        try:
+            call = telnyx.Call.create(
+                connection_id=TELNYX_CONNECTION_ID,
+                to=to_number,
+                from_=TELNYX_PHONE_NUMBER,
+                webhook_url=BASE_URL + '/api/telnyx/outbound-webhook'
+            )
+
+            session_id = f"outbound_{call.call_control_id}"
+            outbound_prompt = _build_outbound_prompt(prospect)
+
+            conversations[session_id] = {
+                "messages": [{"role": "system", "content": outbound_prompt}],
+                "created_at": datetime.utcnow().isoformat(),
+                "metadata": {
+                    "call_control_id": call.call_control_id,
+                    "prospect": prospect,
+                    "type": "outbound_voice",
+                    "to": to_number
+                }
+            }
+
+            active_calls[call.call_control_id] = {
+                'direction': 'outbound',
+                'type': 'harper_outbound',
+                'to': to_number,
+                'from': TELNYX_PHONE_NUMBER,
+                'provider': 'telnyx',
+                'prospect': prospect,
+                'greeting': greeting,
+                'session_id': session_id,
+                'status': 'initiated',
+                'created_at': datetime.utcnow().isoformat()
+            }
+
+            return jsonify({
+                "success": True,
+                "call_control_id": call.call_control_id,
+                "status": "initiated",
+                "to": to_number,
+                "from": TELNYX_PHONE_NUMBER,
+                "provider": "telnyx",
+                "greeting": greeting,
+                "prospect": prospect
+            })
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+@app.route('/api/harper/followup', methods=['POST'])
+def harper_followup_call():
+    """Call back a lead who showed interest but wasn't ready.
+    Shortcut for harper/outbound with call_type=followup.
+
+    Required: { "to": "+1..." }
+    Optional: { "name", "company", "industry", "reason", "provider" }
+    """
+    data = request.json or {}
+    data["call_type"] = "followup"
+    if not data.get("reason"):
+        data["reason"] = "AI automation for your business"
+
+    with app.test_request_context(
+        '/api/harper/outbound',
+        method='POST',
+        json=data,
+        content_type='application/json'
+    ):
+        return harper_outbound_call()
+
+# ========================================
+# TELNYX - OUTBOUND AI CONVERSATION WEBHOOK
+# ========================================
+
+@app.route('/api/telnyx/outbound-webhook', methods=['POST'])
+def telnyx_outbound_ai_webhook():
+    """Handle Telnyx webhook events for AI-powered outbound calls (Harper).
+    Full conversation loop: greet -> listen -> AI reply -> listen -> repeat."""
+    try:
+        data = request.json or {}
+        event_type = data.get('data', {}).get('event_type')
+        payload = data.get('data', {}).get('payload', {})
+        call_control_id = payload.get('call_control_id')
+
+        print(f"[Telnyx Outbound AI] Event: {event_type}, Call ID: {call_control_id}")
+
+        call_info = active_calls.get(call_control_id, {})
+        session_id = call_info.get('session_id', f"outbound_{call_control_id}")
+
+        if event_type == 'call.initiated':
+            print(f"[Telnyx Outbound AI] Call to {call_info.get('to', '?')} initiated")
+            if call_control_id in active_calls:
+                active_calls[call_control_id]['status'] = 'ringing'
+
+        elif event_type == 'call.answered':
+            print(f"[Telnyx Outbound AI] Prospect answered! Playing greeting...")
+            if call_control_id in active_calls:
+                active_calls[call_control_id]['status'] = 'answered'
+
+            greeting = call_info.get('greeting', "Hi, this is Harper from Trapier Management. Got a quick minute?")
+
+            try:
+                call = telnyx.Call()
+                call.call_control_id = call_control_id
+                call.speak(
+                    payload=greeting,
+                    voice='female',
+                    language='en-US'
+                )
+            except Exception as e:
+                print(f"[Telnyx Outbound AI] Greeting TTS failed: {str(e)}")
+
+        elif event_type == 'call.speak.ended':
+            print(f"[Telnyx Outbound AI] Speech finished, listening for response...")
+            if call_control_id in active_calls:
+                active_calls[call_control_id]['status'] = 'listening'
+
+            try:
+                call = telnyx.Call()
+                call.call_control_id = call_control_id
+                call.gather(
+                    input_type='speech',
+                    language='en-US',
+                    timeout=8,
+                    inter_digit_timeout=3
+                )
+            except Exception as e:
+                print(f"[Telnyx Outbound AI] Gather failed: {str(e)}")
+
+        elif event_type == 'call.gather.ended':
+            speech_result = payload.get('speech', {}).get('result', '')
+            print(f"[Telnyx Outbound AI] Prospect said: {speech_result}")
+
+            if speech_result and openai_client:
+                if session_id not in conversations:
+                    prompt = _build_outbound_prompt(call_info.get('prospect', {}))
+                    conversations[session_id] = {
+                        "messages": [{"role": "system", "content": prompt}],
+                        "created_at": datetime.utcnow().isoformat(),
+                        "metadata": {
+                            "call_control_id": call_control_id,
+                            "type": "outbound_voice"
+                        }
+                    }
+
+                conversations[session_id]["messages"].append({
+                    "role": "user",
+                    "content": speech_result
+                })
+
+                try:
+                    ai_response = openai_client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=conversations[session_id]["messages"],
+                        temperature=0.7,
+                        max_tokens=200,
+                    )
+                    harper_reply = ai_response.choices[0].message.content
+                    conversations[session_id]["messages"].append({
+                        "role": "assistant",
+                        "content": harper_reply
+                    })
+
+                    if call_control_id in active_calls:
+                        active_calls[call_control_id]['status'] = 'speaking'
+
+                    call = telnyx.Call()
+                    call.call_control_id = call_control_id
+                    call.speak(
+                        payload=harper_reply,
+                        voice='female',
+                        language='en-US'
+                    )
+                    print(f"[Telnyx Outbound AI] Harper replied: {harper_reply[:100]}...")
+                except Exception as e:
+                    print(f"[Telnyx Outbound AI] AI response failed: {str(e)}")
+            elif not speech_result:
+                print(f"[Telnyx Outbound AI] No speech detected, trying again...")
+                try:
+                    call = telnyx.Call()
+                    call.call_control_id = call_control_id
+                    call.speak(
+                        payload="Hey, you still there? I didn't catch that.",
+                        voice='female',
+                        language='en-US'
+                    )
+                except Exception as e:
+                    print(f"[Telnyx Outbound AI] Retry prompt failed: {str(e)}")
+
+        elif event_type == 'call.hangup':
+            print(f"[Telnyx Outbound AI] Call {call_control_id} ended")
+            if call_control_id in active_calls:
+                active_calls[call_control_id]['status'] = 'completed'
+                active_calls[call_control_id]['ended_at'] = datetime.utcnow().isoformat()
+
+        return jsonify({"status": "received"}), 200
+
+    except Exception as e:
+        print(f"[Telnyx Outbound AI] Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # ========================================
@@ -941,7 +1353,7 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"")
     print(f"{'='*50}")
-    print(f"  HARPOON AI - Voice Agent Platform v2.0")
+    print(f"  HARPOON AI - Voice Agent Platform v2.1")
     print(f"{'='*50}")
     print(f"  Port:        {port}")
     print(f"  Telnyx:      {'CONNECTED' if TELNYX_API_KEY else 'NOT CONFIGURED'} ({TELNYX_PHONE_NUMBER})")
@@ -951,16 +1363,19 @@ if __name__ == '__main__':
     print(f"  Base URL:    {BASE_URL}")
     print(f"{'='*50}")
     print(f"  Endpoints:")
-    print(f"    GET  /health                    - System health")
-    print(f"    GET  /api/harpoon/status         - Full status")
-    print(f"    POST /api/harper/chat            - Chat with Harper (text)")
-    print(f"    GET  /api/harper/signed-url      - ElevenLabs web widget URL")
-    print(f"    POST /api/harper/inbound         - Inbound call setup")
-    print(f"    POST /api/telnyx/inbound         - Telnyx inbound webhook")
-    print(f"    POST /api/telnyx/call            - Telnyx outbound call")
-    print(f"    POST /api/elevenlabs/call        - ElevenLabs outbound call")
-    print(f"    POST /api/call/batch             - Batch calls")
-    print(f"    POST /api/call/schedule          - Schedule a call")
+    print(f"    GET  /health                       - System health")
+    print(f"    GET  /api/harpoon/status            - Full status")
+    print(f"    POST /api/harper/chat               - Chat with Harper (text)")
+    print(f"    GET  /api/harper/signed-url         - ElevenLabs web widget URL")
+    print(f"    POST /api/harper/inbound            - Inbound call setup")
+    print(f"    POST /api/harper/outbound           - AI outbound call (Harper)")
+    print(f"    POST /api/harper/followup           - Follow-up call to lead")
+    print(f"    POST /api/telnyx/inbound            - Telnyx inbound webhook")
+    print(f"    POST /api/telnyx/outbound-webhook   - Telnyx outbound AI webhook")
+    print(f"    POST /api/telnyx/call               - Telnyx simple outbound")
+    print(f"    POST /api/elevenlabs/call           - ElevenLabs outbound call")
+    print(f"    POST /api/call/batch                - Batch calls")
+    print(f"    POST /api/call/schedule             - Schedule a call")
     print(f"{'='*50}")
     print(f"")
     app.run(host='0.0.0.0', port=port, debug=False)
