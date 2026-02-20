@@ -1,7 +1,6 @@
 
 from flask import Flask, request, jsonify
 import os
-import json
 import uuid
 import requests
 from datetime import datetime
@@ -21,6 +20,7 @@ TELNYX_CONNECTION_ID = os.environ.get('TELNYX_CONNECTION_ID', '28177786357321579
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY', '')
 AGENT_ID = os.environ.get('AGENT_ID', '')
+ELEVENLABS_PHONE_NUMBER_ID = os.environ.get('ELEVENLABS_PHONE_NUMBER_ID', AGENT_ID)
 BASE_URL = os.environ.get('BASE_URL', 'https://web-production-47d4.up.railway.app')
 
 # ========================================
@@ -512,21 +512,8 @@ def _build_outbound_greeting(prospect):
         return f"Hey {name}, this is Harper calling from Trapier Management. Harold Trapier asked me to reach out.{industry_hook} Got a quick minute?"
     return f"Hi, this is Harper calling from Trapier Management.{industry_hook} Got a quick minute?"
 
-@app.route('/api/harper/outbound', methods=['POST'])
-def harper_outbound_call():
-    """Make an AI-powered outbound call with Harper.
-    Harper will use the prospect's context to personalize the conversation.
-
-    Supports two providers:
-      - "telnyx" (default): Dials via Telnyx, Harper converses via OpenAI + TTS
-      - "elevenlabs": Dials via ElevenLabs conversational AI agent
-
-    Required: { "to": "+1..." }
-    Optional: { "name", "company", "industry", "pain_point", "reason",
-                "call_type" ("cold"|"followup"|"referral"), "referrer",
-                "source", "provider" ("telnyx"|"elevenlabs") }
-    """
-    data = request.json or {}
+def _harper_outbound_internal(data):
+    """Shared logic for making an AI-powered outbound call with Harper."""
     to_number = data.get('to')
 
     if not to_number:
@@ -554,7 +541,7 @@ def harper_outbound_call():
             el_payload = {
                 "agent_id": AGENT_ID,
                 "customer_phone_number": to_number,
-                "agent_phone_number_id": AGENT_ID,
+                "agent_phone_number_id": ELEVENLABS_PHONE_NUMBER_ID,
                 "first_message": greeting,
             }
 
@@ -653,6 +640,22 @@ def harper_outbound_call():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+@app.route('/api/harper/outbound', methods=['POST'])
+def harper_outbound_call():
+    """Make an AI-powered outbound call with Harper.
+    Harper will use the prospect's context to personalize the conversation.
+
+    Supports two providers:
+      - "telnyx" (default): Dials via Telnyx, Harper converses via OpenAI + TTS
+      - "elevenlabs": Dials via ElevenLabs conversational AI agent
+
+    Required: { "to": "+1..." }
+    Optional: { "name", "company", "industry", "pain_point", "reason",
+                "call_type" ("cold"|"followup"|"referral"), "referrer",
+                "source", "provider" ("telnyx"|"elevenlabs") }
+    """
+    return _harper_outbound_internal(request.json or {})
+
 @app.route('/api/harper/followup', methods=['POST'])
 def harper_followup_call():
     """Call back a lead who showed interest but wasn't ready.
@@ -665,14 +668,7 @@ def harper_followup_call():
     data["call_type"] = "followup"
     if not data.get("reason"):
         data["reason"] = "AI automation for your business"
-
-    with app.test_request_context(
-        '/api/harper/outbound',
-        method='POST',
-        json=data,
-        content_type='application/json'
-    ):
-        return harper_outbound_call()
+    return _harper_outbound_internal(data)
 
 # ========================================
 # TELNYX - OUTBOUND AI CONVERSATION WEBHOOK
@@ -842,27 +838,9 @@ def telnyx_inbound_webhook():
                 print(f"[Telnyx Inbound] Error answering: {str(e)}")
 
         elif event_type == 'call.answered':
-            print(f"[Telnyx Inbound] Call {call_control_id} answered, connecting to Harper...")
+            print(f"[Telnyx Inbound] Call {call_control_id} answered, playing Harper greeting...")
             if call_control_id in active_calls:
                 active_calls[call_control_id]['status'] = 'answered'
-
-            if ELEVENLABS_API_KEY and AGENT_ID:
-                try:
-                    el_response = requests.post(
-                        "https://api.elevenlabs.io/v1/convai/twilio/outbound_call",
-                        headers={
-                            "xi-api-key": ELEVENLABS_API_KEY,
-                            "Content-Type": "application/json"
-                        },
-                        json={
-                            "agent_id": AGENT_ID,
-                            "agent_phone_number_id": AGENT_ID,
-                        },
-                        timeout=15
-                    )
-                    print(f"[Telnyx Inbound] ElevenLabs connect response: {el_response.status_code}")
-                except Exception as e:
-                    print(f"[Telnyx Inbound] ElevenLabs connect failed: {str(e)}")
 
             try:
                 call = telnyx.Call()
@@ -873,7 +851,7 @@ def telnyx_inbound_webhook():
                     language='en-US'
                 )
             except Exception as e:
-                print(f"[Telnyx Inbound] TTS fallback failed: {str(e)}")
+                print(f"[Telnyx Inbound] Greeting TTS failed: {str(e)}")
 
         elif event_type == 'call.speak.ended':
             print(f"[Telnyx Inbound] Greeting finished for {call_control_id}")
@@ -939,6 +917,18 @@ def telnyx_inbound_webhook():
                     print(f"[Telnyx Inbound] Harper replied: {harper_reply[:80]}...")
                 except Exception as e:
                     print(f"[Telnyx Inbound] AI response failed: {str(e)}")
+            elif not speech_result:
+                print(f"[Telnyx Inbound] No speech detected, prompting caller...")
+                try:
+                    call = telnyx.Call()
+                    call.call_control_id = call_control_id
+                    call.speak(
+                        payload="Hey, you still there? I didn't catch that. How can I help you?",
+                        voice='female',
+                        language='en-US'
+                    )
+                except Exception as e:
+                    print(f"[Telnyx Inbound] Silence prompt failed: {str(e)}")
 
         elif event_type == 'call.hangup':
             print(f"[Telnyx Inbound] Call {call_control_id} ended")
@@ -1074,7 +1064,7 @@ def make_elevenlabs_call():
             json={
                 **payload,
                 "customer_phone_number": to_number,
-                "agent_phone_number_id": AGENT_ID
+                "agent_phone_number_id": ELEVENLABS_PHONE_NUMBER_ID
             },
             timeout=30
         )
@@ -1330,7 +1320,7 @@ def make_elevenlabs_call_internal(to):
         json={
             "agent_id": AGENT_ID,
             "customer_phone_number": to,
-            "agent_phone_number_id": AGENT_ID
+            "agent_phone_number_id": ELEVENLABS_PHONE_NUMBER_ID
         },
         timeout=30
     )
