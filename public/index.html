@@ -6,7 +6,6 @@
   <title>Harpoon AI - Outbound Call Platform</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --bg: #0a0e1a;
       --surface: #111827;
@@ -28,398 +27,143 @@
       --purple-bg: rgba(139, 92, 246, 0.1);
       --radius: 10px;
     }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      line-height: 1.5;
-    }
-
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 16px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-    }
-
-    .logo-icon {
-      width: 36px;
-      height: 36px;
-      background: linear-gradient(135deg, var(--accent), var(--purple));
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-    }
-
-    .status-bar {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-    }
-
-    .status-dot {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--text-muted);
-    }
-
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.5; }
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .logo { display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+    .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--purple)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .status-bar { display: flex; gap: 16px; align-items: center; }
+    .status-dot { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
     .dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    .dot.warn { background: var(--orange); }
     .dot.err { background: var(--red); }
-
-    main {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 32px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 28px;
-    }
-
-    @media (max-width: 1024px) {
-      main { grid-template-columns: 1fr; padding: 20px; }
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-    }
-
-    .card-header {
-      padding: 20px 24px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .card-header h2 {
-      font-size: 16px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
+    main { max-width: 1400px; margin: 0 auto; padding: 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+    @media (max-width: 1024px) { main { grid-template-columns: 1fr; padding: 20px; } }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .card-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-header h2 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
     .card-body { padding: 24px; }
 
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
+    /* Tabs */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); }
+    .tab { padding: 14px 20px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
 
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
+    /* Form */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group.full { grid-column: 1 / -1; }
-
-    label {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    input, select, textarea {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 14px;
-      color: var(--text);
-      font-size: 14px;
-      font-family: inherit;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      outline: none;
-    }
-
-    input:focus, select:focus, textarea:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
-    }
-
-    input::placeholder, textarea::placeholder {
-      color: #4a5568;
-    }
-
+    label { font-size: 13px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    input, select, textarea { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px; font-family: inherit; transition: border-color 0.2s, box-shadow 0.2s; outline: none; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    input::placeholder, textarea::placeholder { color: #4a5568; }
     textarea { resize: vertical; min-height: 70px; }
 
-    .provider-toggle {
-      display: flex;
-      gap: 8px;
-    }
-
-    .provider-btn {
-      flex: 1;
-      padding: 12px 16px;
-      border: 2px solid var(--border);
-      border-radius: 8px;
-      background: var(--surface-2);
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-
+    .provider-toggle { display: flex; gap: 8px; }
+    .provider-btn { flex: 1; padding: 12px 16px; border: 2px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-muted); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .provider-btn:hover { border-color: var(--border-hover); color: var(--text); }
-    .provider-btn.active {
-      border-color: var(--accent);
-      background: var(--accent-glow);
-      color: var(--accent);
-    }
-
-    .call-type-row {
-      display: flex;
-      gap: 8px;
-    }
-
-    .type-chip {
-      padding: 6px 14px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--text-muted);
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
+    .provider-btn.active { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
+    .call-type-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .type-chip { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 0.2s; }
     .type-chip:hover { border-color: var(--border-hover); color: var(--text); }
-    .type-chip.active {
-      border-color: var(--accent);
-      background: var(--accent-glow);
-      color: var(--accent);
-    }
+    .type-chip.active { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
 
-    .btn-call {
-      width: 100%;
-      padding: 14px 24px;
-      border: none;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 8px;
-    }
-
-    .btn-call.telnyx {
-      background: linear-gradient(135deg, var(--accent), #1d4ed8);
-      color: white;
-    }
-
-    .btn-call.elevenlabs {
-      background: linear-gradient(135deg, var(--purple), #6d28d9);
-      color: white;
-    }
-
-    .btn-call:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-    .btn-call:active { transform: translateY(0); }
-    .btn-call:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    .btn-call .spinner {
-      width: 18px;
-      height: 18px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-      display: none;
-    }
-
-    .btn-call.loading .spinner { display: block; }
-    .btn-call.loading .btn-text { display: none; }
-
+    .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), #1d4ed8); color: white; }
+    .btn-purple { background: linear-gradient(135deg, var(--purple), #6d28d9); color: white; }
+    .btn-green { background: linear-gradient(135deg, var(--green), #059669); color: white; }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); box-shadow: none; }
+    .btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid transparent; }
+    .btn-danger:hover { border-color: var(--red); box-shadow: none; }
+    .btn-full { width: 100%; }
+    .btn .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; display: none; }
+    .btn.loading .spinner { display: block; }
+    .btn.loading .btn-text { display: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .call-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-height: 520px;
-      overflow-y: auto;
-    }
+    .referrer-row { display: none; grid-column: 1 / -1; }
+    .referrer-row.show { display: block; }
 
+    /* Template quick-fill */
+    .quick-fill { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .qf-tag { padding: 3px 10px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .qf-tag:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Upload zone */
+    .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 48px 24px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+    .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: var(--accent-glow); }
+    .upload-zone .icon { font-size: 40px; margin-bottom: 12px; opacity: 0.6; }
+    .upload-zone p { color: var(--text-muted); font-size: 14px; }
+    .upload-zone small { color: #4a5568; font-size: 12px; }
+    .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+    /* Bulk table */
+    .bulk-table-wrap { max-height: 400px; overflow-y: auto; margin-top: 16px; border: 1px solid var(--border); border-radius: 8px; }
+    .bulk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .bulk-table th { background: var(--surface-2); padding: 10px 12px; text-align: left; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 1; }
+    .bulk-table td { padding: 10px 12px; border-top: 1px solid var(--border); }
+    .bulk-table tr:hover td { background: rgba(59, 130, 246, 0.04); }
+    .bulk-table input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+    .bulk-actions { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+    .bulk-count { font-size: 13px; color: var(--text-muted); margin-left: auto; }
+    .bulk-progress { margin-top: 12px; }
+    .progress-bar { width: 100%; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); border-radius: 3px; transition: width 0.3s; }
+    .progress-text { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+    /* Templates */
+    .tpl-section { margin-bottom: 24px; }
+    .tpl-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .tpl-list { display: flex; flex-direction: column; gap: 8px; }
+    .tpl-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; }
+    .tpl-item .tpl-text { flex: 1; font-size: 13px; }
+    .tpl-item .tpl-industry { font-size: 11px; color: var(--accent); background: var(--accent-glow); padding: 2px 8px; border-radius: 10px; }
+    .tpl-add { display: flex; gap: 8px; margin-top: 10px; }
+    .tpl-add input, .tpl-add select { flex: 1; }
+    .tpl-empty { color: #4a5568; font-size: 13px; padding: 12px; text-align: center; }
+
+    /* Call list */
+    .call-list { display: flex; flex-direction: column; gap: 10px; max-height: 520px; overflow-y: auto; }
     .call-list::-webkit-scrollbar { width: 6px; }
     .call-list::-webkit-scrollbar-track { background: transparent; }
     .call-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-    .call-item {
-      padding: 14px 16px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--surface-2);
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      transition: border-color 0.2s;
-    }
-
+    .call-item { padding: 14px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); display: flex; align-items: center; gap: 14px; transition: border-color 0.2s; }
     .call-item:hover { border-color: var(--border-hover); }
-
-    .call-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      flex-shrink: 0;
-    }
-
+    .call-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
     .call-icon.telnyx { background: rgba(59, 130, 246, 0.15); }
     .call-icon.elevenlabs { background: var(--purple-bg); }
-
     .call-details { flex: 1; min-width: 0; }
-
-    .call-name {
-      font-weight: 600;
-      font-size: 14px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .call-meta {
-      font-size: 12px;
-      color: var(--text-muted);
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-top: 2px;
-    }
-
-    .call-status {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 3px 10px;
-      border-radius: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      flex-shrink: 0;
-    }
-
+    .call-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .call-meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 8px; align-items: center; margin-top: 2px; }
+    .call-status { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
     .call-status.initiated { background: var(--orange-bg); color: var(--orange); }
     .call-status.ringing { background: var(--orange-bg); color: var(--orange); }
-    .call-status.answered { background: var(--green-bg); color: var(--green); }
-    .call-status.completed { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+    .call-status.answered, .call-status.in_progress { background: var(--green-bg); color: var(--green); }
+    .call-status.completed { background: rgba(100,116,139,0.15); color: #94a3b8; }
     .call-status.failed { background: var(--red-bg); color: var(--red); }
-    .call-status.in_progress { background: var(--green-bg); color: var(--green); }
-
-    .empty-state {
-      text-align: center;
-      padding: 48px 24px;
-      color: var(--text-muted);
-    }
-
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
     .empty-state .icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
     .empty-state p { font-size: 14px; }
 
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      padding: 14px 20px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      z-index: 1000;
-      transform: translateY(100px);
-      opacity: 0;
-      transition: all 0.3s ease;
-      max-width: 400px;
-    }
-
+    .toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; z-index: 1000; transform: translateY(100px); opacity: 0; transition: all 0.3s ease; max-width: 400px; }
     .toast.show { transform: translateY(0); opacity: 1; }
     .toast.success { background: var(--green); color: white; }
     .toast.error { background: var(--red); color: white; }
 
-    .stats-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      grid-column: 1 / -1;
-      margin-bottom: 8px;
-    }
-
-    .stat-card {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
-      text-align: center;
-    }
-
-    .stat-value {
-      font-size: 28px;
-      font-weight: 700;
-      background: linear-gradient(135deg, var(--accent), var(--purple));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .stat-label {
-      font-size: 11px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-top: 4px;
-    }
-
-    .referrer-row {
-      display: none;
-      grid-column: 1 / -1;
-    }
-
-    .referrer-row.show { display: block; }
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 8px; }
+    .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
+    .stat-value { font-size: 28px; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .mt-8 { margin-top: 8px; }
+    .mt-16 { margin-top: 16px; }
+    .gap-8 { gap: 8px; }
   </style>
 </head>
 <body>
@@ -437,126 +181,228 @@
 </header>
 
 <main>
-  <!-- LEFT: Customer Form -->
+  <!-- LEFT COLUMN -->
   <div class="card">
-    <div class="card-header">
-      <h2>&#x1F4DE; New Outbound Call</h2>
+    <div class="tabs">
+      <button class="tab active" data-tab="single">Single Call</button>
+      <button class="tab" data-tab="bulk">Bulk Upload</button>
+      <button class="tab" data-tab="templates">Templates</button>
     </div>
-    <div class="card-body">
-      <form id="callForm" autocomplete="off">
-        <div class="form-grid">
 
-          <div class="form-group full">
-            <label>Call Type</label>
-            <div class="call-type-row">
-              <button type="button" class="type-chip active" data-type="cold">Cold Outreach</button>
-              <button type="button" class="type-chip" data-type="followup">Follow-up</button>
-              <button type="button" class="type-chip" data-type="referral">Referral</button>
+    <!-- TAB: Single Call -->
+    <div class="tab-panel active" id="tab-single">
+      <div class="card-body">
+        <form id="callForm" autocomplete="off">
+          <div class="form-grid">
+            <div class="form-group full">
+              <label>Call Type</label>
+              <div class="call-type-row">
+                <button type="button" class="type-chip active" data-type="cold">Cold Outreach</button>
+                <button type="button" class="type-chip" data-type="followup">Follow-up</button>
+                <button type="button" class="type-chip" data-type="referral">Referral</button>
+              </div>
             </div>
-          </div>
-
-          <div class="form-group">
-            <label>Phone Number *</label>
-            <input type="tel" id="phone" placeholder="+1 (555) 123-4567" required>
-          </div>
-
-          <div class="form-group">
-            <label>Contact Name</label>
-            <input type="text" id="name" placeholder="John Smith">
-          </div>
-
-          <div class="form-group">
-            <label>Company</label>
-            <input type="text" id="company" placeholder="ABC Construction">
-          </div>
-
-          <div class="form-group">
-            <label>Industry</label>
-            <select id="industry">
-              <option value="">Select industry...</option>
-              <option value="construction">Construction / Contractors</option>
-              <option value="HVAC">HVAC / Plumbing / Electrical</option>
-              <option value="restaurants">Restaurants / Food Service</option>
-              <option value="trucking">Trucking / Logistics</option>
-              <option value="manufacturing">Manufacturing</option>
-              <option value="auto repair">Auto Repair / Body Shops</option>
-              <option value="property management">Property Management / Janitorial</option>
-              <option value="agriculture">Agriculture / Farming</option>
-              <option value="waste management">Waste Management</option>
-              <option value="retail">Retail / Convenience / Gas</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          <div class="form-group full">
-            <label>Pain Point</label>
-            <input type="text" id="painPoint" placeholder="e.g. Scheduling chaos, change order delays, food waste...">
-          </div>
-
-          <div class="form-group full">
-            <label>Reason for Call</label>
-            <textarea id="reason" placeholder="e.g. They downloaded our guide, showed interest at a trade show, etc."></textarea>
-          </div>
-
-          <div class="referrer-row" id="referrerRow">
             <div class="form-group">
-              <label>Referred By</label>
-              <input type="text" id="referrer" placeholder="e.g. John at ABC Construction">
+              <label>Phone Number *</label>
+              <input type="tel" id="phone" placeholder="+15551234567" required>
+            </div>
+            <div class="form-group">
+              <label>Contact Name</label>
+              <input type="text" id="name" placeholder="John Smith">
+            </div>
+            <div class="form-group">
+              <label>Company</label>
+              <input type="text" id="company" placeholder="ABC Construction">
+            </div>
+            <div class="form-group">
+              <label>Industry</label>
+              <select id="industry">
+                <option value="">Select industry...</option>
+                <option value="construction">Construction / Contractors</option>
+                <option value="HVAC">HVAC / Plumbing / Electrical</option>
+                <option value="restaurants">Restaurants / Food Service</option>
+                <option value="trucking">Trucking / Logistics</option>
+                <option value="manufacturing">Manufacturing</option>
+                <option value="auto repair">Auto Repair / Body Shops</option>
+                <option value="property management">Property Management / Janitorial</option>
+                <option value="agriculture">Agriculture / Farming</option>
+                <option value="waste management">Waste Management</option>
+                <option value="retail">Retail / Convenience / Gas</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group full">
+              <label>Pain Point</label>
+              <input type="text" id="painPoint" placeholder="e.g. Scheduling chaos, change order delays...">
+              <div class="quick-fill" id="qfPain"></div>
+            </div>
+            <div class="form-group full">
+              <label>Reason for Call</label>
+              <textarea id="reason" placeholder="e.g. Downloaded guide, trade show lead..."></textarea>
+              <div class="quick-fill" id="qfReason"></div>
+            </div>
+            <div class="referrer-row" id="referrerRow">
+              <div class="form-group">
+                <label>Referred By</label>
+                <input type="text" id="referrer" placeholder="e.g. John at ABC Construction">
+              </div>
+            </div>
+            <div class="form-group full">
+              <label>Provider</label>
+              <div class="provider-toggle">
+                <button type="button" class="provider-btn active" data-provider="telnyx">&#x1F4F1; Telnyx + OpenAI</button>
+                <button type="button" class="provider-btn" data-provider="elevenlabs">&#x1F3A4; ElevenLabs Agent</button>
+              </div>
+            </div>
+            <div class="form-group full">
+              <button type="submit" class="btn btn-primary btn-full" id="callBtn">
+                <span class="spinner"></span>
+                <span class="btn-text">&#x1F4DE; Start Outbound Call</span>
+              </button>
             </div>
           </div>
+        </form>
+      </div>
+    </div>
 
-          <div class="form-group full">
-            <label>Provider</label>
-            <div class="provider-toggle">
-              <button type="button" class="provider-btn active" data-provider="telnyx">
-                &#x1F4F1; Telnyx + OpenAI
-              </button>
-              <button type="button" class="provider-btn" data-provider="elevenlabs">
-                &#x1F3A4; ElevenLabs Agent
-              </button>
-            </div>
-          </div>
-
-          <div class="form-group full">
-            <button type="submit" class="btn-call telnyx" id="callBtn">
-              <span class="spinner"></span>
-              <span class="btn-text">&#x1F4DE; Start Outbound Call</span>
-            </button>
-          </div>
-
+    <!-- TAB: Bulk Upload -->
+    <div class="tab-panel" id="tab-bulk">
+      <div class="card-body">
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="csvFile" accept=".csv,.tsv,.txt">
+          <div class="icon">&#x1F4C1;</div>
+          <p>Drop a CSV file here or click to browse</p>
+          <small>Columns: phone, name, company, industry, pain_point, reason</small>
         </div>
-      </form>
+
+        <div id="bulkPreview" style="display:none;">
+          <div class="bulk-table-wrap">
+            <table class="bulk-table">
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="selectAll" checked></th>
+                  <th>Phone</th>
+                  <th>Name</th>
+                  <th>Company</th>
+                  <th>Industry</th>
+                  <th>Pain Point</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody id="bulkBody"></tbody>
+            </table>
+          </div>
+
+          <div class="bulk-actions">
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="text-transform:none;font-size:13px;color:var(--text);">Provider:</label>
+              <select id="bulkProvider" style="width:auto;">
+                <option value="telnyx">Telnyx + OpenAI</option>
+                <option value="elevenlabs">ElevenLabs Agent</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="text-transform:none;font-size:13px;color:var(--text);">Call Type:</label>
+              <select id="bulkCallType" style="width:auto;">
+                <option value="cold">Cold Outreach</option>
+                <option value="followup">Follow-up</option>
+                <option value="referral">Referral</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="text-transform:none;font-size:13px;color:var(--text);">Delay (sec):</label>
+              <input type="number" id="bulkDelay" value="3" min="1" max="30" style="width:60px;">
+            </div>
+            <div class="bulk-count"><span id="selectedCount">0</span> selected</div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:12px;">
+            <button class="btn btn-green" id="callSelectedBtn" onclick="startBulkCalls()">
+              <span class="spinner"></span>
+              <span class="btn-text">&#x1F4DE; Call Selected</span>
+            </button>
+            <button class="btn btn-outline" onclick="clearBulk()">Clear</button>
+          </div>
+          <div class="bulk-progress" id="bulkProgress" style="display:none;">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+            <div class="progress-text" id="progressText">0 / 0 calls completed</div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+          <p style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">&#x1F4DD; CSV format example:</p>
+          <pre style="background:var(--surface-2);padding:12px;border-radius:8px;font-size:12px;color:var(--text-muted);overflow-x:auto;">phone,name,company,industry,pain_point,reason
++15551234567,John Smith,ABC Construction,construction,Change order delays,Trade show lead
++15559876543,Jane Doe,Tom's HVAC,HVAC,Scheduling chaos,Website inquiry
++15554443333,Mike Johnson,Fresh Eats,restaurants,Food waste,Referral from John</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: Templates -->
+    <div class="tab-panel" id="tab-templates">
+      <div class="card-body">
+        <div class="tpl-section">
+          <h3>&#x1F4CC; Saved Pain Points</h3>
+          <div class="tpl-list" id="painList"></div>
+          <div class="tpl-add">
+            <input type="text" id="newPainText" placeholder="Enter a pain point...">
+            <select id="newPainIndustry" style="width:auto;min-width:140px;">
+              <option value="">All Industries</option>
+              <option value="construction">Construction</option>
+              <option value="HVAC">HVAC</option>
+              <option value="restaurants">Restaurants</option>
+              <option value="trucking">Trucking</option>
+              <option value="manufacturing">Manufacturing</option>
+              <option value="auto repair">Auto Repair</option>
+              <option value="property management">Property Mgmt</option>
+              <option value="agriculture">Agriculture</option>
+              <option value="waste management">Waste Mgmt</option>
+              <option value="retail">Retail</option>
+            </select>
+            <button class="btn btn-sm btn-primary" onclick="addTemplate('pain')">Add</button>
+          </div>
+        </div>
+
+        <div class="tpl-section">
+          <h3>&#x1F4CB; Saved Call Reasons</h3>
+          <div class="tpl-list" id="reasonList"></div>
+          <div class="tpl-add">
+            <input type="text" id="newReasonText" placeholder="Enter a call reason...">
+            <select id="newReasonIndustry" style="width:auto;min-width:140px;">
+              <option value="">All Industries</option>
+              <option value="construction">Construction</option>
+              <option value="HVAC">HVAC</option>
+              <option value="restaurants">Restaurants</option>
+              <option value="trucking">Trucking</option>
+              <option value="manufacturing">Manufacturing</option>
+              <option value="auto repair">Auto Repair</option>
+              <option value="property management">Property Mgmt</option>
+              <option value="agriculture">Agriculture</option>
+              <option value="waste management">Waste Mgmt</option>
+              <option value="retail">Retail</option>
+            </select>
+            <button class="btn btn-sm btn-primary" onclick="addTemplate('reason')">Add</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- RIGHT: Call History -->
+  <!-- RIGHT COLUMN -->
   <div>
     <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-value" id="statTotal">0</div>
-        <div class="stat-label">Total Calls</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" id="statActive">0</div>
-        <div class="stat-label">Active</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" id="statCompleted">0</div>
-        <div class="stat-label">Completed</div>
-      </div>
+      <div class="stat-card"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Total Calls</div></div>
+      <div class="stat-card"><div class="stat-value" id="statActive">0</div><div class="stat-label">Active</div></div>
+      <div class="stat-card"><div class="stat-value" id="statCompleted">0</div><div class="stat-label">Completed</div></div>
     </div>
-
     <div class="card">
       <div class="card-header">
         <h2>&#x1F4CB; Call History</h2>
-        <button onclick="refreshCalls()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;">Refresh</button>
+        <button class="btn btn-sm btn-outline" onclick="refreshCalls()">Refresh</button>
       </div>
       <div class="card-body">
         <div class="call-list" id="callList">
-          <div class="empty-state">
-            <div class="icon">&#x1F4DE;</div>
-            <p>No calls yet. Fill in customer info and start calling.</p>
-          </div>
+          <div class="empty-state"><div class="icon">&#x1F4DE;</div><p>No calls yet. Fill in customer info and start calling.</p></div>
         </div>
       </div>
     </div>
@@ -566,186 +412,290 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  let selectedProvider = 'telnyx';
-  let selectedType = 'cold';
-  let calls = [];
+let selectedProvider = 'telnyx';
+let selectedType = 'cold';
+let calls = [];
+let bulkContacts = [];
 
-  // Provider toggle
-  document.querySelectorAll('.provider-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.provider-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedProvider = btn.dataset.provider;
-      const callBtn = document.getElementById('callBtn');
-      callBtn.className = `btn-call ${selectedProvider}`;
-    });
-  });
+// --- Templates (localStorage) ---
+function loadTemplates() {
+  try { return JSON.parse(localStorage.getItem('harpoon_templates')) || { pain: [], reason: [] }; }
+  catch { return { pain: [], reason: [] }; }
+}
+function saveTemplates(t) { localStorage.setItem('harpoon_templates', JSON.stringify(t)); }
 
-  // Call type toggle
-  document.querySelectorAll('.type-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      selectedType = chip.dataset.type;
-      document.getElementById('referrerRow').classList.toggle('show', selectedType === 'referral');
-    });
-  });
-
-  // Format phone number
-  document.getElementById('phone').addEventListener('input', function(e) {
-    let v = e.target.value.replace(/[^\d+]/g, '');
-    if (v && !v.startsWith('+')) v = '+1' + v;
-    e.target.value = v;
-  });
-
-  // Submit form
-  document.getElementById('callForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('callBtn');
-    const phone = document.getElementById('phone').value.trim();
-
-    if (!phone) { showToast('Phone number is required', 'error'); return; }
-
-    btn.classList.add('loading');
-    btn.disabled = true;
-
-    const payload = {
-      to: phone,
-      name: document.getElementById('name').value.trim(),
-      company: document.getElementById('company').value.trim(),
-      industry: document.getElementById('industry').value,
-      pain_point: document.getElementById('painPoint').value.trim(),
-      reason: document.getElementById('reason').value.trim(),
-      call_type: selectedType,
-      referrer: document.getElementById('referrer').value.trim(),
-      provider: selectedProvider
-    };
-
-    try {
-      const res = await fetch('/api/outbound', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        showToast(`Call initiated to ${payload.name || phone}`, 'success');
-        addCallToList({
-          id: data.call_control_id || data.call_id || Date.now(),
-          ...payload,
-          status: 'initiated',
-          provider: selectedProvider,
-          created_at: new Date().toISOString(),
-          greeting: data.greeting
-        });
-        document.getElementById('callForm').reset();
-        document.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
-        document.querySelector('.type-chip[data-type="cold"]').classList.add('active');
-        selectedType = 'cold';
-        document.getElementById('referrerRow').classList.remove('show');
-      } else {
-        showToast(data.error || 'Call failed', 'error');
-      }
-    } catch (err) {
-      showToast('Network error: ' + err.message, 'error');
-    } finally {
-      btn.classList.remove('loading');
-      btn.disabled = false;
-    }
-  });
-
-  function addCallToList(call) {
-    calls.unshift(call);
-    renderCalls();
-  }
-
-  function renderCalls() {
-    const list = document.getElementById('callList');
-    if (calls.length === 0) {
-      list.innerHTML = `<div class="empty-state"><div class="icon">&#x1F4DE;</div><p>No calls yet. Fill in customer info and start calling.</p></div>`;
+function renderTemplates() {
+  const t = loadTemplates();
+  ['pain','reason'].forEach(type => {
+    const list = document.getElementById(type + 'List');
+    const items = t[type] || [];
+    if (items.length === 0) {
+      list.innerHTML = '<div class="tpl-empty">No saved ' + (type === 'pain' ? 'pain points' : 'call reasons') + ' yet.</div>';
       return;
     }
+    list.innerHTML = items.map((item, i) => `
+      <div class="tpl-item">
+        <div class="tpl-text">${esc(item.text)}</div>
+        ${item.industry ? '<span class="tpl-industry">' + esc(item.industry) + '</span>' : ''}
+        <button class="btn btn-sm btn-danger" onclick="removeTemplate('${type}',${i})">&#x2715;</button>
+      </div>
+    `).join('');
+  });
+  renderQuickFills();
+}
 
-    list.innerHTML = calls.map(c => {
-      const displayName = c.name || c.to;
-      const time = new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const provClass = c.provider === 'elevenlabs' ? 'elevenlabs' : 'telnyx';
-      const provIcon = c.provider === 'elevenlabs' ? '&#x1F3A4;' : '&#x1F4F1;';
-      const typeLabel = { cold: 'Cold', followup: 'Follow-up', referral: 'Referral' }[c.call_type] || 'Call';
+function addTemplate(type) {
+  const text = document.getElementById(type === 'pain' ? 'newPainText' : 'newReasonText').value.trim();
+  const industry = document.getElementById(type === 'pain' ? 'newPainIndustry' : 'newReasonIndustry').value;
+  if (!text) return;
+  const t = loadTemplates();
+  t[type].push({ text, industry });
+  saveTemplates(t);
+  document.getElementById(type === 'pain' ? 'newPainText' : 'newReasonText').value = '';
+  renderTemplates();
+  showToast((type === 'pain' ? 'Pain point' : 'Call reason') + ' saved', 'success');
+}
 
-      return `
-        <div class="call-item">
-          <div class="call-icon ${provClass}">${provIcon}</div>
-          <div class="call-details">
-            <div class="call-name">${esc(displayName)}</div>
-            <div class="call-meta">
-              <span>${esc(c.company || c.industry || '')}</span>
-              ${c.company && c.industry ? '<span>&middot;</span><span>' + esc(c.industry) + '</span>' : ''}
-              <span>&middot;</span>
-              <span>${typeLabel}</span>
-              <span>&middot;</span>
-              <span>${time}</span>
-            </div>
-          </div>
-          <div class="call-status ${c.status}">${c.status.replace('_', ' ')}</div>
-        </div>
-      `;
-    }).join('');
+function removeTemplate(type, idx) {
+  const t = loadTemplates();
+  t[type].splice(idx, 1);
+  saveTemplates(t);
+  renderTemplates();
+}
 
-    document.getElementById('statTotal').textContent = calls.length;
-    document.getElementById('statActive').textContent = calls.filter(c => ['initiated','ringing','answered','in_progress','listening','speaking'].includes(c.status)).length;
-    document.getElementById('statCompleted').textContent = calls.filter(c => c.status === 'completed').length;
-  }
+function renderQuickFills() {
+  const t = loadTemplates();
+  const ind = document.getElementById('industry').value;
+  ['pain','reason'].forEach(type => {
+    const el = document.getElementById(type === 'pain' ? 'qfPain' : 'qfReason');
+    const field = type === 'pain' ? 'painPoint' : 'reason';
+    const items = (t[type] || []).filter(i => !i.industry || i.industry === ind || !ind);
+    if (items.length === 0) { el.innerHTML = ''; return; }
+    el.innerHTML = items.map(i =>
+      `<span class="qf-tag" onclick="document.getElementById('${field}').value='${esc(i.text).replace(/'/g,"\\'")}'">${esc(i.text)}</span>`
+    ).join('');
+  });
+}
 
-  function esc(str) {
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
-  }
+// --- Tabs ---
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
 
-  function showToast(msg, type) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = `toast ${type} show`;
-    setTimeout(() => t.classList.remove('show'), 4000);
-  }
+// --- Provider / Type toggles ---
+document.querySelectorAll('.provider-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.provider-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedProvider = btn.dataset.provider;
+  });
+});
+document.querySelectorAll('.type-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    selectedType = chip.dataset.type;
+    document.getElementById('referrerRow').classList.toggle('show', selectedType === 'referral');
+  });
+});
+document.getElementById('industry').addEventListener('change', renderQuickFills);
 
-  async function refreshCalls() {
-    try {
-      const res = await fetch('/api/calls');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.calls && data.calls.length > 0) {
-          calls = data.calls;
-          renderCalls();
-        }
-      }
-    } catch (e) {
-      // silent
+// --- Single Call ---
+document.getElementById('phone').addEventListener('input', function(e) {
+  let v = e.target.value.replace(/[^\d+]/g, '');
+  if (v && !v.startsWith('+')) v = '+1' + v;
+  e.target.value = v;
+});
+
+document.getElementById('callForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('callBtn');
+  const phone = document.getElementById('phone').value.trim();
+  if (!phone) { showToast('Phone number is required', 'error'); return; }
+  btn.classList.add('loading'); btn.disabled = true;
+  const payload = {
+    to: phone, name: document.getElementById('name').value.trim(),
+    company: document.getElementById('company').value.trim(), industry: document.getElementById('industry').value,
+    pain_point: document.getElementById('painPoint').value.trim(), reason: document.getElementById('reason').value.trim(),
+    call_type: selectedType, referrer: document.getElementById('referrer').value.trim(), provider: selectedProvider
+  };
+  try {
+    const res = await fetch('/api/outbound', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast('Call initiated to ' + (payload.name || phone), 'success');
+      addCallToList({ id: data.call_control_id || data.call_id || Date.now(), ...payload, status: 'initiated', created_at: new Date().toISOString(), greeting: data.greeting });
+      document.getElementById('callForm').reset();
+      document.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
+      document.querySelector('.type-chip[data-type="cold"]').classList.add('active');
+      selectedType = 'cold';
+      document.getElementById('referrerRow').classList.remove('show');
+      renderQuickFills();
+    } else { showToast(data.error || 'Call failed', 'error'); }
+  } catch (err) { showToast('Network error: ' + err.message, 'error'); }
+  finally { btn.classList.remove('loading'); btn.disabled = false; }
+});
+
+// --- Bulk Upload ---
+const uploadZone = document.getElementById('uploadZone');
+const csvInput = document.getElementById('csvFile');
+
+['dragenter','dragover'].forEach(e => uploadZone.addEventListener(e, ev => { ev.preventDefault(); uploadZone.classList.add('dragover'); }));
+['dragleave','drop'].forEach(e => uploadZone.addEventListener(e, ev => { ev.preventDefault(); uploadZone.classList.remove('dragover'); }));
+uploadZone.addEventListener('drop', ev => { if (ev.dataTransfer.files.length) parseCSV(ev.dataTransfer.files[0]); });
+csvInput.addEventListener('change', ev => { if (ev.target.files.length) parseCSV(ev.target.files[0]); });
+
+function parseCSV(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) { showToast('CSV must have a header row and at least one data row', 'error'); return; }
+    const headers = lines[0].split(/[,\t]/).map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, ''));
+    const colMap = {};
+    const aliases = {
+      phone: ['phone','phonenumber','phone_number','tel','telephone','number','mobile'],
+      name: ['name','contact','contactname','contact_name','fullname','full_name'],
+      company: ['company','companyname','company_name','business','organization'],
+      industry: ['industry','sector','vertical','type'],
+      pain_point: ['pain_point','painpoint','pain','challenge','problem','issue'],
+      reason: ['reason','callreason','call_reason','notes','note','source']
+    };
+    for (const [field, alts] of Object.entries(aliases)) {
+      const idx = headers.findIndex(h => alts.includes(h));
+      if (idx >= 0) colMap[field] = idx;
     }
-  }
+    if (colMap.phone === undefined) { showToast('CSV must have a "phone" column', 'error'); return; }
 
-  async function checkStatus() {
-    try {
-      const res = await fetch('/api/status');
-      if (res.ok) {
-        const data = await res.json();
-        document.getElementById('dot-telnyx').className = 'dot ' + (data.connections?.telnyx ? 'ok' : 'err');
-        document.getElementById('dot-elevenlabs').className = 'dot ' + (data.connections?.elevenlabs ? 'ok' : 'err');
-        document.getElementById('dot-openai').className = 'dot ' + (data.connections?.openai ? 'ok' : 'err');
-      }
-    } catch (e) {
-      document.getElementById('dot-telnyx').className = 'dot err';
-      document.getElementById('dot-elevenlabs').className = 'dot err';
-      document.getElementById('dot-openai').className = 'dot err';
+    bulkContacts = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(/[,\t]/).map(c => c.trim().replace(/^["']|["']$/g, ''));
+      let phone = cols[colMap.phone] || '';
+      phone = phone.replace(/[^\d+]/g, '');
+      if (phone && !phone.startsWith('+')) phone = '+1' + phone;
+      if (!phone) continue;
+      bulkContacts.push({
+        phone, name: cols[colMap.name] || '', company: cols[colMap.company] || '',
+        industry: cols[colMap.industry] || '', pain_point: cols[colMap.pain_point] || '',
+        reason: cols[colMap.reason] || '', selected: true
+      });
     }
+
+    if (bulkContacts.length === 0) { showToast('No valid contacts found in CSV', 'error'); return; }
+    showToast(bulkContacts.length + ' contacts loaded', 'success');
+    renderBulkTable();
+  };
+  reader.readAsText(file);
+}
+
+function renderBulkTable() {
+  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('bulkPreview').style.display = 'block';
+  const body = document.getElementById('bulkBody');
+  body.innerHTML = bulkContacts.map((c, i) => `
+    <tr>
+      <td><input type="checkbox" data-idx="${i}" ${c.selected ? 'checked' : ''} onchange="toggleContact(${i}, this.checked)"></td>
+      <td>${esc(c.phone)}</td>
+      <td>${esc(c.name)}</td>
+      <td>${esc(c.company)}</td>
+      <td>${esc(c.industry)}</td>
+      <td>${esc(c.pain_point)}</td>
+      <td>${esc(c.reason)}</td>
+    </tr>
+  `).join('');
+  updateSelectedCount();
+}
+
+function toggleContact(idx, checked) { bulkContacts[idx].selected = checked; updateSelectedCount(); }
+document.getElementById('selectAll').addEventListener('change', function() {
+  bulkContacts.forEach(c => c.selected = this.checked);
+  document.querySelectorAll('#bulkBody input[type="checkbox"]').forEach(cb => cb.checked = this.checked);
+  updateSelectedCount();
+});
+function updateSelectedCount() {
+  document.getElementById('selectedCount').textContent = bulkContacts.filter(c => c.selected).length;
+}
+
+function clearBulk() {
+  bulkContacts = [];
+  document.getElementById('uploadZone').style.display = 'block';
+  document.getElementById('bulkPreview').style.display = 'none';
+  document.getElementById('bulkProgress').style.display = 'none';
+  csvInput.value = '';
+}
+
+async function startBulkCalls() {
+  const selected = bulkContacts.filter(c => c.selected);
+  if (selected.length === 0) { showToast('No contacts selected', 'error'); return; }
+  const provider = document.getElementById('bulkProvider').value;
+  const callType = document.getElementById('bulkCallType').value;
+  const delay = parseInt(document.getElementById('bulkDelay').value) || 3;
+  const btn = document.getElementById('callSelectedBtn');
+  btn.classList.add('loading'); btn.disabled = true;
+  const prog = document.getElementById('bulkProgress');
+  prog.style.display = 'block';
+  let completed = 0;
+
+  for (const contact of selected) {
+    const payload = {
+      to: contact.phone, name: contact.name, company: contact.company,
+      industry: contact.industry, pain_point: contact.pain_point,
+      reason: contact.reason, call_type: callType, provider
+    };
+    try {
+      const res = await fetch('/api/outbound', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const data = await res.json();
+      addCallToList({ id: data.call_control_id || data.call_id || Date.now(), ...payload, status: res.ok && data.success ? 'initiated' : 'failed', created_at: new Date().toISOString() });
+    } catch { addCallToList({ id: Date.now(), ...payload, status: 'failed', created_at: new Date().toISOString() }); }
+    completed++;
+    document.getElementById('progressFill').style.width = ((completed / selected.length) * 100) + '%';
+    document.getElementById('progressText').textContent = completed + ' / ' + selected.length + ' calls completed';
+    if (completed < selected.length) await new Promise(r => setTimeout(r, delay * 1000));
   }
 
-  checkStatus();
-  setInterval(checkStatus, 30000);
+  btn.classList.remove('loading'); btn.disabled = false;
+  showToast(completed + ' calls completed', 'success');
+}
+
+// --- Call History ---
+function addCallToList(call) { calls.unshift(call); renderCalls(); }
+function renderCalls() {
+  const list = document.getElementById('callList');
+  if (calls.length === 0) { list.innerHTML = '<div class="empty-state"><div class="icon">&#x1F4DE;</div><p>No calls yet.</p></div>'; return; }
+  list.innerHTML = calls.map(c => {
+    const dn = c.name || c.to;
+    const time = new Date(c.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    const prov = c.provider === 'elevenlabs' ? 'elevenlabs' : 'telnyx';
+    const pi = c.provider === 'elevenlabs' ? '&#x1F3A4;' : '&#x1F4F1;';
+    const tl = {cold:'Cold',followup:'Follow-up',referral:'Referral'}[c.call_type]||'Call';
+    return `<div class="call-item"><div class="call-icon ${prov}">${pi}</div><div class="call-details"><div class="call-name">${esc(dn)}</div><div class="call-meta"><span>${esc(c.company||c.industry||'')}</span>${c.company&&c.industry?'<span>&middot;</span><span>'+esc(c.industry)+'</span>':''}<span>&middot;</span><span>${tl}</span><span>&middot;</span><span>${time}</span></div></div><div class="call-status ${c.status}">${c.status.replace('_',' ')}</div></div>`;
+  }).join('');
+  document.getElementById('statTotal').textContent = calls.length;
+  document.getElementById('statActive').textContent = calls.filter(c => ['initiated','ringing','answered','in_progress','listening','speaking'].includes(c.status)).length;
+  document.getElementById('statCompleted').textContent = calls.filter(c => c.status === 'completed').length;
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function showToast(msg, type) { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast ' + type + ' show'; setTimeout(() => t.classList.remove('show'), 4000); }
+
+async function refreshCalls() {
+  try { const r = await fetch('/api/calls'); if (r.ok) { const d = await r.json(); if (d.calls?.length) { calls = d.calls; renderCalls(); } } } catch {}
+}
+async function checkStatus() {
+  try {
+    const r = await fetch('/api/status'); if (r.ok) { const d = await r.json();
+    document.getElementById('dot-telnyx').className = 'dot ' + (d.connections?.telnyx ? 'ok' : 'err');
+    document.getElementById('dot-elevenlabs').className = 'dot ' + (d.connections?.elevenlabs ? 'ok' : 'err');
+    document.getElementById('dot-openai').className = 'dot ' + (d.connections?.openai ? 'ok' : 'err'); }
+  } catch { document.querySelectorAll('.dot').forEach(d => d.className = 'dot err'); }
+}
+
+checkStatus(); setInterval(checkStatus, 30000);
+renderTemplates();
 </script>
-
 </body>
 </html>
