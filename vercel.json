@@ -1,26 +1,12 @@
 {
   "version": 2,
-  "buildCommand": "pip install -r requirements.txt",
-  "framework": "python",
   "functions": {
-    "api/**/*.py": {
-      "runtime": "python3.11",
-      "memory": 1024,
-      "maxDuration": 60
+    "api/**/*.js": {
+      "memory": 256,
+      "maxDuration": 30
     }
   },
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "app.py"
-    }
-  ],
-  "env": {
-    "PYTHON_VERSION": "3.11"
-  },
-  "git": {
-    "deploymentEnabled": {
-      "main": true
-    }
-  }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/public/$1" }
+  ]
 }
